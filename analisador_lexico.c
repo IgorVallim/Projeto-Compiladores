@@ -1,4 +1,54 @@
 #include <stdio.h>
+#include <ctype.h>
+
+#define _IF_ 101
+#define _INT_ 102
+#define _PROGRAM_ 103
+#define _PRINT_ 104
+#define _VOID_ 105
+#define _TRUE_ 106
+#define _BOOL_ 107
+#define _FALSE_ 108
+#define _WHILE_ 109
+#define _ELSE_ 110
+
+#define _MAIOR_IGUAL_ 201
+#define _MAIOR_ 202
+#define _MENOR_ 203
+#define _MENOR_IGUAL_ 204
+#define _ATRIBUICAO_ 205
+#define _IGUALDADE_ 206
+#define _DIVIDIDO_ 207
+#define _VEZES_ 208
+#define _DIFERENTE_ 209
+#define _MAIS_ 210
+#define _MENOS_ 211
+
+#define _ABRE_CHAVE_ 301
+#define _FECHA_CHAVE_ 302
+#define _PONTO_E_VIRGULA_ 303
+#define _VIRGULA_ 304
+#define _ABRE_PARENTESE_ 305
+#define _FECHA_PARENTESE_ 306
+
+#define _COMENTARIO_ 401
+#define _VARIAVEL_ 402
+#define _VALOR_ 403
+
+char tolkens[][30] = {"< if >", "< int >", "< program >", "< print >", "< void >", "< true >", "< bool >", "< false >", "< while >", "< else >", "< >= >",
+"< > >", "< < >", "< <= >", "< = >", "< == >", "< / >", "< * >", "< != >", "< + >", "< - >", "< { >", "< } >", "< ; >", "< , >", "< ( >", "< ) >", 
+"< comment >", "< var >", "< value >"};
+
+int buscaTolken(int id){
+	int i = 0, ids[30] = {101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 301, 302, 303, 304, 305, 
+	306, 401, 402, 403};
+	
+	for(i=0;i<30;i++){
+		if(id==ids[i]) return i;
+	}
+	return 0;
+	
+}
 
 int analisador(char* entrada){
 
@@ -12,7 +62,22 @@ q0:
     else if(*entrada=='w') goto q40;
     else if(*entrada=='>') goto q46;
     else if(*entrada=='<') goto q50;
-    return 0;
+    else if(*entrada=='=') goto q54;
+    else if(*entrada=='{') goto q58;
+    else if(*entrada=='}') goto q60;
+    else if(*entrada=='/') goto q62;
+    else if(*entrada=='*') goto q66;
+    else if(*entrada=='!') goto q70;
+    else if(*entrada=='+') goto q73;
+    else if(*entrada=='-') goto q75;
+    else if(*entrada==';') goto q77;
+    else if(*entrada==',') goto q78;
+    else if(*entrada=='(') goto q81;
+    else if(*entrada==')') goto q83;
+    else if(*entrada=='_') goto q85;
+    else if(isdigit(*entrada)) goto q87;
+    else if(*entrada=='e') goto q90;
+	return 0;
 
 q1:
     entrada++;
@@ -27,7 +92,7 @@ q2:
 
 q3:
     entrada++;
-    if(*entrada=='\0') return 1;
+    if(*entrada=='\0') return _IF_;
     return 0;
     
 q4:
@@ -42,7 +107,7 @@ q5:
 
 q6:
     entrada++;
-    if(*entrada=='\0') return 1;
+    if(*entrada=='\0') return _INT_;
     return 0;
     
 q7:
@@ -83,7 +148,7 @@ q13:
     
 q14:
     entrada++;
-    if(*entrada=='\0') return 1;
+    if(*entrada=='\0') return _PROGRAM_;
     return 0;
     
 q15:
@@ -103,7 +168,7 @@ q17:
     
 q18:
     entrada++;
-    if(*entrada=='\0') return 1;
+    if(*entrada=='\0') return _PRINT_;
     return 0;
     
 q19:
@@ -128,7 +193,7 @@ q22:
     
 q23:
     entrada++;
-    if(*entrada=='\0') return 1;
+    if(*entrada=='\0') return _VOID_;
     return 0;
     
 q24:
@@ -153,7 +218,7 @@ q27:
     
 q28:
     entrada++;
-    if(*entrada=='\0') return 1;
+    if(*entrada=='\0') return _TRUE_;
     return 0;
     
 q29:
@@ -178,7 +243,7 @@ q32:
     
 q33:
     entrada++;
-    if(*entrada=='\0') return 1;
+    if(*entrada=='\0') return _BOOL_;
     return 0;
     
 q34:
@@ -208,7 +273,7 @@ q38:
     
 q39:
     entrada++;
-    if(*entrada=='\0') return 1;
+    if(*entrada=='\0') return _FALSE_;
     return 0;
     
 q40:
@@ -238,13 +303,13 @@ q44:
     
 q45:
     entrada++;
-    if(*entrada=='\0') return 1;
+    if(*entrada=='\0') return _WHILE_;
     return 0;
     
 q46:
     entrada++;
     if(*entrada=='=') goto q47;
-    else if(*entrada==' ') goto 49;
+    else if(*entrada==' ') goto q49;
     return 0;
     
 q47:
@@ -254,12 +319,12 @@ q47:
     
 q48:
     entrada++;
-    if(*entrada=='\0') return 1;
+    if(*entrada=='\0') return _MAIOR_IGUAL_;
     return 0;
     
 q49:
     entrada++;
-    if(*entrada=='\0') return 1;
+    if(*entrada=='\0') return _MAIOR_;
     return 0;
     
 q50:
@@ -270,7 +335,7 @@ q50:
     
 q51:
     entrada++;
-    if(*entrada=='\0') return 1;
+    if(*entrada=='\0') return _MENOR_;
     return 0;
     
 q52:
@@ -280,14 +345,236 @@ q52:
     
 q53:
     entrada++;
-    if(*entrada=='\0') return 1;
+    if(*entrada=='\0') return _MENOR_IGUAL_;
     return 0;
+    
+q54:
+    entrada++;
+    if(*entrada==' ') goto q55;
+    else if(*entrada=='=') goto q56;
+    return 0;  
+    
+q55:
+    entrada++;
+    if(*entrada=='\0') return _ATRIBUICAO_;
+    return 0;
+    
+q56:
+    entrada++;
+    if(*entrada==' ') goto q57;
+    return 0;
+    
+q57:
+    entrada++;
+    if(*entrada=='\0') return _IGUALDADE_;
+    return 0;
+    
+q58:
+    entrada++;
+    if(*entrada==' ') goto q59;
+    return 0;
+    
+q59:
+    entrada++;
+    if(*entrada=='\0') return _ABRE_CHAVE_;
+    return 0;
+    
+q60:
+    entrada++;
+    if(*entrada==' ') goto q61;
+    return 0;
+    
+q61:
+    entrada++;
+    if(*entrada=='\0') return _FECHA_CHAVE_;
+    return 0;
+    
+q62:
+	entrada++;
+	if(*entrada==' ') goto q63;
+	else if(*entrada=='*') goto q64;
+	return 0;
+	
+q63:
+	entrada++;
+	if(*entrada=='\0') return _DIVIDIDO_;
+	return 0;
+	
+q64:
+	entrada++;
+	if(*entrada=='*') goto q65;
+	else if(*entrada=='\0') return 0;
+	goto q64;
+	
+q65:
+	entrada++;
+	if(*entrada=='/') goto q68;
+	else if(*entrada=='\0') return 0;
+	goto q64;
+	
+q66:
+	entrada++;
+	if(*entrada==' ') goto q67;
+	return 0;
+	
+q67:
+	entrada++;
+	if(*entrada=='\0') return _VEZES_;
+	return 0;
+	
+q68:
+	entrada++;
+	if(*entrada==' ') goto q69;
+	return 0;
+
+q69:
+	entrada++;
+	if(*entrada=='\0') return _COMENTARIO_;
+	return 0;
+	
+q70:
+	entrada++;
+	if(*entrada=='=') goto q71;
+	return 0;
+	
+q71:
+	entrada++;
+	if(*entrada==' ') goto q72;
+	return 0;
+	
+q72:
+	entrada++;
+	if(*entrada=='\0') return _DIFERENTE_;
+	return 0;	
+	
+q73:
+	entrada++;
+	if(*entrada==' ') goto q74;
+	return 0;
+	
+q74:
+	entrada++;
+	if(*entrada=='\0') return _MAIS_;
+	return 0;
+	
+q75:
+	entrada++;
+	if(*entrada==' ') goto q76;
+	return 0;
+	
+q76:
+	entrada++;
+	if(*entrada=='\0') return _MENOS_;
+	return 0;
+	
+q77:
+	entrada++;
+	if(*entrada==' ') goto q78;
+	return 0;
+	
+q78:
+	entrada++;
+	if(*entrada==' ') goto q80;
+	return 0;
+
+q79:
+	entrada++;
+	if(*entrada=='\0') return _PONTO_E_VIRGULA_;
+	return 0;	
+	
+q80:
+	entrada++;
+	if(*entrada=='\0') return _VIRGULA_;
+	return 0;
+	
+q81:
+	entrada++;
+	if(*entrada==' ') goto q82;
+	return 0;
+	
+q82:
+	entrada++;
+	if(*entrada=='\0') return _ABRE_PARENTESE_;
+	return 0;		
+		
+q83:
+	entrada++;
+	if(*entrada==' ') goto q84;
+	return 0;
+	
+q84:
+	entrada++;
+	if(*entrada=='\0') return _FECHA_PARENTESE_;
+	return 0;		
+	
+q85:
+	entrada++;
+	if(isalpha(*entrada)) goto q85;
+	else if(*entrada==' ') goto q86;
+	return 0;
+	
+q86:
+	entrada++;
+	if(*entrada=='\0') return _VARIAVEL_;
+	return 0;
+	
+q87:
+	entrada++;
+	if(isdigit(*entrada)) goto q87;
+	else if(*entrada=='.') goto q88;
+	else if(*entrada==' ') goto q91;
+	return 0;
+	
+q88:
+	entrada++;
+	if(isdigit(*entrada)) goto q89;
+	return 0;	
+	
+q89:
+	entrada++;
+	if(isdigit(*entrada)) goto q89;
+	else if(*entrada==' ') goto q91;
+	return 0;
+	
+q90:
+	entrada++;
+	if(*entrada=='l') goto q92;
+	return 0;	
+	
+q91:
+	entrada++;
+	if(*entrada=='\0') return _VALOR_;
+	return 0;	
+	
+q92:
+	entrada++;
+	if(*entrada=='s') goto q93;
+	return 0;			
+			
+q93:
+	entrada++;
+	if(*entrada=='e') goto q94;
+	return 0;	
+	
+q94:
+	entrada++;
+	if(*entrada==' ') goto q95;
+	return 0;
+	
+q95:
+	entrada++;
+	if(*entrada=='\0') return _ELSE_;
+	return 0;			
 }
 
 int main(){
-    char palavra[50] = ">= ";
-    if(analisador(&palavra[0])==1) printf("Foi\n");
-    else printf("NÃ£o foi\n");
+    char palavra[50] = ") ";
+    int resp = analisador(&palavra[0]);
+    if(resp==0) printf("Lexema não reconhecido!\n");
+    else{
+    	printf("Lexema aceito!\n");
+    	printf("Tolken retornado: %s\n",tolkens[buscaTolken(resp)]);
+	}
     
     return 0;
 }
