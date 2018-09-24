@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <ctype.h>
 
-#define _IF_ 101
+#define _IF_ 101 //Lista de constantes associadas a IDs de tolkens.
 #define _INT_ 102
 #define _PROGRAM_ 103
 #define _PRINT_ 104
@@ -12,8 +12,8 @@
 #define _WHILE_ 109
 #define _ELSE_ 110
 
-#define _MAIOR_IGUAL_ 201
-#define _MAIOR_ 202
+#define _MAIOR_IGUAL_ 201 //Tive que colocar os nomes dos operadores e delimitadores por extenso, pois a linguagem não reconhecia os símbolos
+#define _MAIOR_ 202		  //como parte do nome de constantes.	
 #define _MENOR_ 203
 #define _MENOR_IGUAL_ 204
 #define _ATRIBUICAO_ 205
@@ -35,24 +35,34 @@
 #define _VARIAVEL_ 402
 #define _VALOR_ 403
 
-char tolkens[][30] = {"< if >", "< int >", "< program >", "< print >", "< void >", "< true >", "< bool >", "< false >", "< while >", "< else >", "< >= >",
-"< > >", "< < >", "< <= >", "< = >", "< == >", "< / >", "< * >", "< != >", "< + >", "< - >", "< { >", "< } >", "< ; >", "< , >", "< ( >", "< ) >", 
-"< comment >", "< var >", "< value >"};
+/*
+Beatriz Godoy 31612520
+Fernando Grangeiro 31602843
+Igor Vallim Sordi 31644961
+Lucas Barros 31613144
+*/
 
-int buscaTolken(int id){
-	int i = 0, ids[30] = {101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 301, 302, 303, 304, 305, 
-	306, 401, 402, 403};
+char* buscaTolken(int id){ //Funcao que retorna um tolken (string), com base em seu identificador.
 	
-	for(i=0;i<30;i++){
-		if(id==ids[i]) return i;
+	int i = 0; 
+	
+	int ids[30] = {101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 301, 302, 303, 304, 305, 
+	306, 401, 402, 403}; //Vetor contendo os identificadores dos tolkens.
+	
+	char tolkens[][30] = {"< if >", "< int >", "< program >", "< print >", "< void >", "< true >", "< bool >", "< false >", "< while >", "< else >", "< >= >",
+"< > >", "< < >", "< <= >", "< = >", "< == >", "< / >", "< * >", "< != >", "< + >", "< - >", "< { >", "< } >", "< ; >", "< , >", "< ( >", "< ) >", 
+"< comment >", "< var >", "< value >"}; //Vetor contendo os tolkens (os tolkens possuem posições correspondentes aos seus IDs, encontrados no vetor "ids").
+	
+	for(i=0;i<30;i++){ //For que percorre o vetor "ids" até encontrar a posição do tolken correspondente ao ID passado como parametro.
+		if(id==ids[i]) return tolkens[i];
 	}
 	return 0;
 	
 }
 
-int analisador(char* entrada){
+int analisador(char* entrada){  //Funcao que representa o afd da etapa anterior do projeto, retornando um tolken correspondente a entrada.
 
-q0:
+q0: //Representação do estado inicial do automato.
     if(*entrada=='i') goto q1;
     else if(*entrada=='p') goto q7;
     else if(*entrada=='v') goto q19;
@@ -80,19 +90,19 @@ q0:
 	return 0;
 
 q1:
-    entrada++;
-    if(*entrada=='f') goto q2;
+    entrada++; //Cada vez que ocorre uma transicao, e consumido um caractere da entrada.
+    if(*entrada=='f') goto q2; //Representação de uma transição.
     else if(*entrada=='n') goto q4;
-    return 0;
+    return 0; //Função retorna 0, caso apareca um caractere nao previsto nesse estado.
     
 q2:
     entrada++;
     if(*entrada==' ') goto q3;
     return 0;
 
-q3:
+q3: //Representação de um dos estados finais do automato.
     entrada++;
-    if(*entrada=='\0') return _IF_;
+    if(*entrada=='\0') return _IF_; //Se a string de entrada estiver vazia, retorna o tolken(id) correspondente a esse estado final.
     return 0;
     
 q4:
@@ -568,12 +578,13 @@ q95:
 }
 
 int main(){
-    char palavra[50] = ") ";
-    int resp = analisador(&palavra[0]);
-    if(resp==0) printf("Lexema não reconhecido!\n");
+    char palavra[50] = "_varIav "; //Entrada a ser analisada pelo analisador léxico.
+    int resp = analisador(&palavra[0]); //Chamada de função do analisador
+    if(resp==0) printf("Lexema nao reconhecido!\n"); //Se o retorno for igual 0, a entrada dada não corresponde a nenhum tolken.
     else{
     	printf("Lexema aceito!\n");
-    	printf("Tolken retornado: %s\n",tolkens[buscaTolken(resp)]);
+    	printf("Tolken retornado: %s\n",buscaTolken(resp)); //Se o retorno for diferente de 0, e chamada a função buscaTolken(), que retorna o tolken(string).
+																
 	}
     
     return 0;
