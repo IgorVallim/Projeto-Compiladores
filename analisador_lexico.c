@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include <ctype.h>
+#include <string.h>
+#include <stdlib.h>
 
-#define _IF_ 101 //Lista de constantes associadas a IDs de tolkens.
+#define _IF_ 101 //Lista de constantes associadas a IDs de tokens.
 #define _INT_ 102
 #define _PROGRAM_ 103
 #define _PRINT_ 104
@@ -12,8 +14,8 @@
 #define _WHILE_ 109
 #define _ELSE_ 110
 
-#define _MAIOR_IGUAL_ 201 //Tive que colocar os nomes dos operadores e delimitadores por extenso, pois a linguagem não reconhecia os símbolos
-#define _MAIOR_ 202		  //como parte do nome de constantes.	
+#define _MAIOR_IGUAL_ 201 
+#define _MAIOR_ 202		  	
 #define _MENOR_ 203
 #define _MENOR_IGUAL_ 204
 #define _ATRIBUICAO_ 205
@@ -32,7 +34,7 @@
 #define _FECHA_PARENTESE_ 306
 
 #define _COMENTARIO_ 401
-#define _VARIAVEL_ 402
+#define _IDENTIFICADOR_ 402
 #define _VALOR_ 403
 
 /*
@@ -42,25 +44,63 @@ Igor Vallim Sordi 31644961
 Lucas Barros 31613144
 */
 
-char* buscaTolken(int id){ //Funcao que retorna um tolken (string), com base em seu identificador.
+char** leArquivo(FILE *arquivo, char nome[]){
+
+	char lexema[100], letra;
+	memset(lexema, 0, sizeof(lexema));
+	char** saida = malloc(10000);
+	arquivo = fopen(nome, "r");
+	int cont = 0, pos = 0;
+	while((letra = fgetc(arquivo)) != EOF){
+		if(letra==' ' || iscntrl(letra)){
+			if(lexema[0]!=' ' && !iscntrl(lexema[0]) && lexema[0]!='\0'){
+				lexema[cont] = ' ';
+				saida[pos] = (char*)malloc(sizeof(lexema));
+				strcpy(saida[pos], lexema);
+				pos++;
+				cont = 0;
+				memset(lexema, 0, sizeof(lexema));
+			}else memset(lexema, 0, sizeof(lexema));
+			
+		}else{
+			lexema[cont] = letra;
+			cont++;
+		}
+		
+	}
 	
-	int i = 0; 
+	if(lexema[0]!=' ' && !iscntrl(lexema[0]) && lexema[0]!='\0'){
+		lexema[cont] = ' ';
+		saida[pos] = (char*)malloc(sizeof(lexema));
+		strcpy(saida[pos], lexema);
+	}
+	
+	fclose(arquivo);
+	return saida;
+}
+
+char* buscaToken(int id){ //Funcao que retorna um token (string), com base em seu identificador.
+	
+	int i = 0;
 	
 	int ids[30] = {101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 301, 302, 303, 304, 305, 
-	306, 401, 402, 403}; //Vetor contendo os identificadores dos tolkens.
+	306, 401, 402, 403}; //Vetor contendo os identificadores dos tokens.
 	
-	char tolkens[][30] = {"< if >", "< int >", "< program >", "< print >", "< void >", "< true >", "< bool >", "< false >", "< while >", "< else >", "< >= >",
+	char tokens[][30] = {"< if >", "< int >", "< program >", "< print >", "< void >", "< true >", "< bool >", "< false >", "< while >", "< else >", "< >= >",
 "< > >", "< < >", "< <= >", "< = >", "< == >", "< / >", "< * >", "< != >", "< + >", "< - >", "< { >", "< } >", "< ; >", "< , >", "< ( >", "< ) >", 
-"< comment >", "< var >", "< value >"}; //Vetor contendo os tolkens (os tolkens possuem posições correspondentes aos seus IDs, encontrados no vetor "ids").
+"< comment >", "< id >", "< value >"}; //Vetor contendo os tokens (os tolkens possuem posições correspondentes aos seus IDs, encontrados no vetor "ids").
 	
 	for(i=0;i<30;i++){ //For que percorre o vetor "ids" até encontrar a posição do tolken correspondente ao ID passado como parametro.
-		if(id==ids[i]) return tolkens[i];
+        if(id==ids[i]){
+        	char* resp = tokens[i];
+            return resp;
+        }
 	}
 	return 0;
 	
 }
 
-int analisador(char* entrada){  //Funcao que representa o afd da etapa anterior do projeto, retornando um tolken correspondente a entrada.
+int analisador(char* entrada){  //Funcao que representa o afd da etapa anterior do projeto, retornando um token correspondente a entrada.
 
 q0: //Representação do estado inicial do automato.
     if(*entrada=='i') goto q1;
@@ -102,7 +142,7 @@ q2:
 
 q3: //Representação de um dos estados finais do automato.
     entrada++;
-    if(*entrada=='\0') return _IF_; //Se a string de entrada estiver vazia, retorna o tolken(id) correspondente a esse estado final.
+    if(*entrada=='\0') return _IF_; //Se a string de entrada estiver vazia, retorna o token(id) correspondente a esse estado final.
     return 0;
     
 q4:
@@ -479,7 +519,7 @@ q76:
 	
 q77:
 	entrada++;
-	if(*entrada==' ') goto q78;
+	if(*entrada==' ') goto q79;
 	return 0;
 	
 q78:
@@ -525,7 +565,7 @@ q85:
 	
 q86:
 	entrada++;
-	if(*entrada=='\0') return _VARIAVEL_;
+	if(*entrada=='\0') return _IDENTIFICADOR_;
 	return 0;
 	
 q87:
@@ -578,14 +618,8 @@ q95:
 }
 
 int main(){
-    char palavra[50] = "_varIav "; //Entrada a ser analisada pelo analisador léxico.
-    int resp = analisador(&palavra[0]); //Chamada de função do analisador
-    if(resp==0) printf("Lexema nao reconhecido!\n"); //Se o retorno for igual 0, a entrada dada não corresponde a nenhum tolken.
-    else{
-    	printf("Lexema aceito!\n");
-    	printf("Tolken retornado: %s\n",buscaTolken(resp)); //Se o retorno for diferente de 0, e chamada a função buscaTolken(), que retorna o tolken(string).
-																
-	}
-    
+	FILE *arquivo;
+	char nome[100] = "entrada.txt";
+    char** lexemas = leArquivo(arquivo, nome);
     return 0;
 }

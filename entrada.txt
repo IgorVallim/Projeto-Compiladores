@@ -1,0 +1,31 @@
+program _correto {
+ int _a , _b , _c ;
+ bool _d , _e , _f ;
+ void _proc ( int _arg ) {
+ int _a ;
+_a = 1;
+if ( _a < 1 ) {
+ _a = 12;
+ }
+ }
+ _a = 2;
+ _b = 10;
+ _c = 11;
+ _a = _b + _c ;
+ _d = true ;
+ _e = false ;
+ _f = true ;
+ print ( _b ) ;
+ if ( _d ) {
+_a = 20 ;
+_b = 10 * _c ;
+_c = _a / _b ;
+ }
+ while ( _a > 1 ) {
+if ( _b > 10 ) {
+ _b = 2 ;
+ _a = _a - 1 ;
+} else {
+ _a = _a - 1 ;
+}
+ }
