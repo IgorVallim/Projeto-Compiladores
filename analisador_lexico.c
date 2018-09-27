@@ -44,15 +44,19 @@ Igor Vallim Sordi 31644961
 Lucas Barros 31613144
 */
 
-char** leArquivo(FILE *arquivo, char nome[]){
+char** leArquivo(FILE *arquivo, char nome[]){ //Funcao que faz a leitura do arquivo contendo o programa fonte, e retorna um vetor de lexemas.
 
 	char lexema[100], letra;
 	memset(lexema, 0, sizeof(lexema));
 	char** saida = malloc(10000);
 	arquivo = fopen(nome, "r");
+	if(!arquivo){
+		printf("ERRO: '%s' nao encontrado!\n", nome);
+		exit(0); //Finaliza o programa, caso o arquivo nao seja encontrado.
+	}
 	int cont = 0, pos = 0;
-	while((letra = fgetc(arquivo)) != EOF){
-		if(letra==' ' || iscntrl(letra)){
+	while((letra = fgetc(arquivo)) != EOF){ //Percorre o arquivo, letra por letra.
+		if(letra==' ' || iscntrl(letra)){ //Separa os lexemas por espaços em branco e quebras de linha.
 			if(lexema[0]!=' ' && !iscntrl(lexema[0]) && lexema[0]!='\0'){
 				lexema[cont] = ' ';
 				saida[pos] = (char*)malloc(sizeof(lexema));
@@ -617,20 +621,20 @@ q95:
 	return 0;			
 }
 
-char** validaLexemas(char** lexemas){
+char** validaLexemas(char** lexemas){ //Funcao que recebe um vetor de lexemas e retorna um vetor de tokens.
     int i = 0, pos = 0, cod;
     char** saida = malloc(10000);
     while(lexemas[i]!=NULL){
-        cod = analisador(lexemas[i]);
-        if(cod==0){
-            printf("ERRO: Lexema '%s' nao reconhecido!\n",lexemas[i]);
-            exit(0);
+        cod = analisador(lexemas[i]); //Chama analisador lexico para cada lexema do vetor.
+        if(cod==0){ 
+            printf("ERRO: Lexema '%s' nao reconhecido!\n",lexemas[i]); 
+            exit(0); //Finaliza o programa, caso algum lexema obtido seja invalido.
         }else{
             saida[pos] = malloc(sizeof(char)*11);
 			memset(saida[pos], 0, sizeof(saida[pos]));
-            strcpy(saida[pos],buscaToken(cod));
+            strcpy(saida[pos],buscaToken(cod)); //Escreve token correspondente no vetor "tokens".
             pos++;
-            if(cod==402 || cod==403){
+            if(cod==402 || cod==403){ //Se for encontrada uma variavel ou um valor numerico, seu valor e gravado na proxima posicao do vetor.
             	saida[pos] = malloc(sizeof(lexemas[i]));
 				memset(saida[pos], 0, sizeof(saida[pos]));
             	strcpy(saida[pos],lexemas[i]);
@@ -642,7 +646,7 @@ char** validaLexemas(char** lexemas){
     return saida;
 }
 
-int escreveArquivo(char** tokens){
+int escreveArquivo(char** tokens){ //Funcao que escreve os tokens no arquivo de saida.
 	FILE *arquivo = fopen("saida.txt", "w");
 	int i = 0;
 	while(tokens[i]!=NULL){
@@ -660,9 +664,11 @@ int escreveArquivo(char** tokens){
 
 int main(){
 	FILE *arquivo;
-	char nome[] = "entrada.txt";
+	char nome[] = "entrada.txt"; //Nome do arquivo a ser lido pelo programa.
     char** lexemas = leArquivo(arquivo, nome);
     char** tokens = validaLexemas(lexemas);
     escreveArquivo(tokens);
+    printf("Analise lexica efetuada com sucesso!\n");
+    printf("Os tokens gerados pelo codigo fonte foram gravados no arquivo 'saida.txt'.\n");
     return 0;
 }
