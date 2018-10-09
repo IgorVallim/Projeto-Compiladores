@@ -1,3 +1,10 @@
+/*
+ Beatriz Godoy 31612520
+ Fernando Grangeiro 31602843
+ Igor Vallim Sordi 31644961
+ Lucas Barros 31613144
+ */
+
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
@@ -37,13 +44,6 @@
 #define _IDENTIFICADOR_ 402
 #define _VALOR_ 403
 
-/*
-Beatriz Godoy 31612520
-Fernando Grangeiro 31602843
-Igor Vallim Sordi 31644961
-Lucas Barros 31613144
-*/
-
 char** leArquivo(FILE *arquivo, char nome[]){ //Funcao que faz a leitura do arquivo contendo o programa fonte, e retorna um vetor de lexemas.
 
 	char lexema[100], letra;
@@ -56,7 +56,7 @@ char** leArquivo(FILE *arquivo, char nome[]){ //Funcao que faz a leitura do arqu
 	}
 	int cont = 0, pos = 0;
 	while((letra = fgetc(arquivo)) != EOF){ //Percorre o arquivo, letra por letra.
-		if(letra==' ' || iscntrl(letra)){ //Separa os lexemas por espaços em branco e quebras de linha.
+		if(letra==' ' || iscntrl(letra)){ //Separa os lexemas por espacos em branco e quebras de linha.
 			if(lexema[0]!=' ' && !iscntrl(lexema[0]) && lexema[0]!='\0'){
 				lexema[cont] = ' ';
 				saida[pos] = (char*)malloc(sizeof(lexema));
@@ -575,18 +575,6 @@ q86:
 q87:
 	entrada++;
 	if(isdigit(*entrada)) goto q87;
-	else if(*entrada=='.') goto q88;
-	else if(*entrada==' ') goto q91;
-	return 0;
-	
-q88:
-	entrada++;
-	if(isdigit(*entrada)) goto q89;
-	return 0;	
-	
-q89:
-	entrada++;
-	if(isdigit(*entrada)) goto q89;
 	else if(*entrada==' ') goto q91;
 	return 0;
 	
@@ -631,12 +619,10 @@ char** validaLexemas(char** lexemas){ //Funcao que recebe um vetor de lexemas e 
             exit(0); //Finaliza o programa, caso algum lexema obtido seja invalido.
         }else{
             saida[pos] = malloc(sizeof(char)*11);
-			memset(saida[pos], 0, sizeof(saida[pos]));
             strcpy(saida[pos],buscaToken(cod)); //Escreve token correspondente no vetor "tokens".
             pos++;
             if(cod==402 || cod==403){ //Se for encontrada uma variavel ou um valor numerico, seu valor e gravado na proxima posicao do vetor.
             	saida[pos] = malloc(sizeof(lexemas[i]));
-				memset(saida[pos], 0, sizeof(saida[pos]));
             	strcpy(saida[pos],lexemas[i]);
             	pos++;
 			}
