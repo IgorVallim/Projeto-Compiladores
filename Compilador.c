@@ -10,7 +10,8 @@
 #include <string.h>
 #include <stdlib.h>
 
-#define _IF_ 101 //Lista de constantes associadas a IDs de tokens.
+//Lista de constantes associadas a IDs de tokens.
+#define _IF_ 101 
 #define _INT_ 102
 #define _PROGRAM_ 103
 #define _PRINT_ 104
@@ -44,57 +45,46 @@
 #define _IDENTIFICADOR_ 402
 #define _VALOR_ 403
 
-char** leArquivo(FILE *arquivo, char nome[]){ //Funcao que faz a leitura do arquivo contendo o programa fonte, e retorna um vetor de lexemas.
+int lookahead;
 
-	char lexema[100], letra;
-	memset(lexema, 0, sizeof(lexema));
-	char** saida = malloc(10000);
+//Funcao que le o arquivo contendo o programa fonte, e retorna uma String com seu conteudo.
+char* leArquivo(FILE* arquivo, char nome[]){
 	arquivo = fopen(nome, "r");
 	if(!arquivo){
-		printf("ERRO: '%s' nao encontrado!\n", nome);
-		exit(0); //Finaliza o programa, caso o arquivo nao seja encontrado.
-	}
-	int cont = 0, pos = 0;
-	while((letra = fgetc(arquivo)) != EOF){ //Percorre o arquivo, letra por letra.
-		if(letra==' ' || iscntrl(letra)){ //Separa os lexemas por espacos em branco e quebras de linha.
-			if(lexema[0]!=' ' && !iscntrl(lexema[0]) && lexema[0]!='\0'){
-				lexema[cont] = ' ';
-				saida[pos] = (char*)malloc(sizeof(lexema));
-				strcpy(saida[pos], lexema);
-				pos++;
-				cont = 0;
-				memset(lexema, 0, sizeof(lexema));
-			}else memset(lexema, 0, sizeof(lexema));
-			
-		}else{
-			lexema[cont] = letra;
-			cont++;
-		}
-		
+		printf("ERRO: arquivo nao encontrado!\n");
+		exit(0);
 	}
 	
-	if(lexema[0]!=' ' && !iscntrl(lexema[0]) && lexema[0]!='\0'){
-		lexema[cont] = ' ';
-		saida[pos] = (char*)malloc(sizeof(lexema));
-		strcpy(saida[pos], lexema);
+	fseek(arquivo, 0, SEEK_END);
+	int tamanho = ftell(arquivo);
+	char* programa = malloc(tamanho*sizeof(char));
+	fseek(arquivo, 0, SEEK_SET);
+	char letra;
+	int i = 0;
+	while((letra = fgetc(arquivo)) != EOF){
+		programa[i] = letra;
+		i++;		
 	}
-	
-	fclose(arquivo);
-	return saida;
+	programa[i] = '\0';
+	return programa;
 }
 
-char* buscaToken(int id){ //Funcao que retorna um token (string), com base em seu identificador.
+//Funcao que retorna um token (String), com base em seu identificador.
+char* buscaToken(int id){ 
 	
 	int i = 0;
+		
+	//Vetor contendo os identificadores dos tokens.
+	int ids[30] = {101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 
+				   211, 301, 302, 303, 304, 305, 306, 401, 402, 403}; 
 	
-	int ids[30] = {101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 301, 302, 303, 304, 305, 
-	306, 401, 402, 403}; //Vetor contendo os identificadores dos tokens.
-	
-	char tokens[][30] = {"< if >", "< int >", "< program >", "< print >", "< void >", "< true >", "< bool >", "< false >", "< while >", "< else >", "< >= >",
-"< > >", "< < >", "< <= >", "< = >", "< == >", "< / >", "< * >", "< != >", "< + >", "< - >", "< { >", "< } >", "< ; >", "< , >", "< ( >", "< ) >", 
-"< comment >", "< id >", "< value >"}; //Vetor contendo os tokens (os tokens possuem posicaes correspondentes aos seus IDs, encontrados no vetor "ids").
-	
-	for(i=0;i<30;i++){ //For que percorre o vetor "ids" até encontrar a posição do tolken correspondente ao ID passado como parametro.
+	//Vetor contendo os tokens (os tokens possuem posicaes correspondentes aos seus IDs, encontrados no vetor "ids").
+	char tokens[][30] = {"< if >", "< int >", "< program >", "< print >", "< void >", "< true >", "< bool >", "< false >", "< while >", 
+						 "< else >", "< >= >", "< > >", "< < >", "< <= >", "< = >", "< == >", "< / >", "< * >", "< != >", "< + >", "< - >", 
+						 "< { >", "< } >", "< ; >", "< , >", "< ( >", "< ) >", "< comment >", "< id >", "< value >"}; 
+						 
+	//For que percorre o vetor "ids" até encontrar a posição do tolken correspondente ao ID passado como parametro.
+	for(i=0;i<30;i++){ 
         if(id==ids[i]){
         	char* resp = tokens[i];
             return resp;
@@ -104,9 +94,11 @@ char* buscaToken(int id){ //Funcao que retorna um token (string), com base em se
 	
 }
 
-int analisador(char* entrada){  //Funcao que representa o afd da etapa anterior do projeto, retornando um token correspondente a entrada.
+//Funcao que representa o afd da etapa anterior do projeto, retornando um token correspondente a entrada.
+int scanner(char* entrada){  
 
-q0: //Representacao do estado inicial do automato.
+//Representacao do estado inicial do automato.
+q0: 
     if(*entrada=='i') goto q1;
     else if(*entrada=='p') goto q7;
     else if(*entrada=='v') goto q19;
@@ -134,19 +126,24 @@ q0: //Representacao do estado inicial do automato.
 	return 0;
 
 q1:
-    entrada++; //Cada vez que ocorre uma transicao, e consumido um caractere da entrada.
-    if(*entrada=='f') goto q2; //Representação de uma transicao.
+	//Cada vez que ocorre uma transicao, e consumido um caractere da entrada.
+    entrada++; 
+    //Representação de uma transicao.
+    if(*entrada=='f') goto q2; 
     else if(*entrada=='n') goto q4;
-    return 0; //Funcao retorna 0, caso apareca um caractere nao previsto nesse estado.
+    //Funcao retorna 0, caso apareca um caractere nao previsto nesse estado.
+	return 0; 
     
 q2:
     entrada++;
     if(*entrada==' ') goto q3;
     return 0;
 
-q3: //Representacao de um dos estados finais do automato.
+//Representacao de um dos estados finais do automato.
+q3: 
     entrada++;
-    if(*entrada=='\0') return _IF_; //Se a string de entrada estiver vazia, retorna o token(id) correspondente a esse estado final.
+    //Se a string de entrada estiver vazia, retorna o token(id) correspondente a esse estado final.
+    if(*entrada=='\0') return _IF_; 
     return 0;
     
 q4:
@@ -609,52 +606,74 @@ q95:
 	return 0;			
 }
 
-char** validaLexemas(char** lexemas){ //Funcao que recebe um vetor de lexemas e retorna um vetor de tokens.
-    int i = 0, pos = 0, cod;
-    char** saida = malloc(10000);
-    while(lexemas[i]!=NULL){
-        cod = analisador(lexemas[i]); //Chama analisador lexico para cada lexema do vetor.
-        if(cod==0){ 
-            printf("ERRO: Lexema '%s' nao reconhecido!\n",lexemas[i]); 
-            exit(0); //Finaliza o programa, caso algum lexema obtido seja invalido.
-        }else{
-            saida[pos] = malloc(sizeof(char)*11);
-            strcpy(saida[pos],buscaToken(cod)); //Escreve token correspondente no vetor "tokens".
-            pos++;
-            if(cod==402 || cod==403){ //Se for encontrada uma variavel ou um valor numerico, seu valor e gravado na proxima posicao do vetor.
-            	saida[pos] = malloc(sizeof(lexemas[i]));
-            	strcpy(saida[pos],lexemas[i]);
-            	pos++;
-			}
-        }
-        i++;
-    }
-    return saida;
+//Funcao que faz a analise lexica de trecho do programa fonte.
+int analisadorLexico(char programa[], int *pos){
+	char lexema[100];
+	int i = 0;
+	while(programa[*pos]==' ' || iscntrl(programa[*pos])) (*pos)++;
+	while(programa[*pos]!=' ' && !iscntrl(programa[*pos])  && programa[*pos]!='\0' ){
+		lexema[i] = programa[*pos];
+		(*pos)++;
+		i++;
+	}
+	lexema[i] = ' ';
+	lexema[i+1] = '\0';
+	int token = scanner(lexema);
+	if(!token) imprimeErroLexico(programa, pos, lexema);
+	else return token;
 }
 
-int escreveArquivo(char** tokens){ //Funcao que escreve os tokens no arquivo de saida.
-	FILE *arquivo = fopen("saida.txt", "w");
-	int i = 0;
-	while(tokens[i]!=NULL){
-		fprintf(arquivo,"%s ",tokens[i]);
-		if(!strcmp(tokens[i],"< value >") || !strcmp(tokens[i],"< id >")){
-			i++;
-			fprintf(arquivo,"%s",tokens[i]);
-		}
-		i++;
-		fprintf(arquivo,"\n");
+//Funcao que imprime erros lexicos.
+int imprimeErroLexico(char programa[], int *pos, char lexema[]){
+	int i, linha = 1;
+	for(i=0;i<(*pos);i++){
+		if(programa[i]=='\n') linha++;
 	}
-	fclose(arquivo);
+	printf("ERRO: lexema '%s' nao reconhecido! (linha %d)", lexema, linha);
+	exit(0);
+}
+
+//Funcao que confere se o token encontrado confere com o esperado.
+int  match(int token, char programa[], int *pos){
+	if (lookahead == token){
+		lookahead = analisadorLexico(programa, pos);
+		return 1;
+	}
+	imprimeErroSemantico(programa, pos, token);  
+}
+
+int imprimeErroSemantico(char programa[], int* pos, int esperado){
+	int i, linha = 1;
+	for(i=0;i<(*pos);i++){
+		if(programa[i]=='\n') linha++;
+	}
+	printf("%s",buscaToken(esperado));
+	printf("ERRO: esperava token %s, encontrou %s (linha %d)", buscaToken(esperado), buscaToken(lookahead), linha);
+	exit(0);
+}
+
+int programa(char programa[], int *pos){
+	match(103, programa, pos);  
+	match(402, programa, pos); 
+	match(301, programa, pos); 
+	bloco(programa, pos); 
+	match(302, programa, pos);
 	return 1;
+}
+
+int bloco(char programa[], int *pos){
+	return 0;
 }
 
 int main(){
 	FILE *arquivo;
-	char nome[] = "entrada.txt"; //Nome do arquivo a ser lido pelo programa.
-    char** lexemas = leArquivo(arquivo, nome);
-    char** tokens = validaLexemas(lexemas);
-    escreveArquivo(tokens);
-    printf("Analise lexica efetuada com sucesso!\n");
-    printf("Os tokens gerados pelo codigo fonte foram gravados no arquivo 'saida.txt'.\n");
+	//Nome do arquivo a ser lido pelo programa.
+	char nome[] = "entrada.txt"; 
+    char* entrada = leArquivo(arquivo, nome);
+	int pos = 0;
+	lookahead = analisadorLexico(entrada, &pos);
+	programa(entrada, &pos);
+	printf("Analises lexica e semantica efetuadas com sucesso!\n");
+	printf("Nenhum erro encontrado!");
     return 0;
 }
