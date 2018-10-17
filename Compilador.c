@@ -70,29 +70,74 @@ char* leArquivo(FILE* arquivo, char nome[]){
 }
 
 //Funcao que retorna um token (String), com base em seu identificador.
-char* buscaToken(int id){ 
+char* buscaToken(int id){
 	
-	int i = 0;
-		
-	//Vetor contendo os identificadores dos tokens.
-	int ids[30] = {101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 
-				   211, 301, 302, 303, 304, 305, 306, 401, 402, 403}; 
-	
-	//Vetor contendo os tokens (os tokens possuem posicaes correspondentes aos seus IDs, encontrados no vetor "ids").
-	char tokens[][30] = {"< if >", "< int >", "< program >", "< print >", "< void >", "< true >", "< bool >", "< false >", "< while >", 
-						 "< else >", "< >= >", "< > >", "< < >", "< <= >", "< = >", "< == >", "< / >", "< * >", "< != >", "< + >", "< - >", 
-						 "< { >", "< } >", "< ; >", "< , >", "< ( >", "< ) >", "< comment >", "< id >", "< value >"}; 
-						 
-	//For que percorre o vetor "ids" até encontrar a posição do tolken correspondente ao ID passado como parametro.
-	for(i=0;i<30;i++){ 
-        if(id==ids[i]){
-        	char* resp = tokens[i];
-            return resp;
-        }
-	}
-	return 0;
-	
+    switch (id) {
+        case 101:
+            return "< if >";
+        case 102:
+            return "< int >";
+        case 103:
+            return "< program >";
+        case 104:
+            return "< print >";
+        case 105:
+            return "< void >";
+        case 106:
+            return "< true >";
+        case 107:
+            return "< bool >";
+        case 108:
+            return "< false >";
+        case 109:
+            return "< while >";
+        case 110:
+            return "< else >";
+        case 201:
+            return "< >= >";
+        case 202:
+            return "< > >";
+        case 203:
+            return "< < >";
+        case 204:
+            return "< <= >";
+        case 205:
+            return "< = >";
+        case 206:
+            return "< == >";
+        case 207:
+            return "< / >";
+        case 208:
+            return "< * >";
+        case 209:
+            return "< != >";
+        case 210:
+            return "< + >";
+        case 211:
+            return "< - >";
+        case 301:
+            return "< { >";
+        case 302:
+            return "< } >";
+        case 303:
+            return "< ; >";
+        case 304:
+            return "< , >";
+        case 305:
+            return "< ( >";
+        case 306:
+            return "< ) >";
+        case 401:
+            return "< comment >";
+        case 402:
+            return "< id >";
+        case 403:
+            return "< value >";
+        default:
+            return "Token nao encontrado!";
+    }
 }
+
 
 //Funcao que representa o afd da etapa anterior do projeto, retornando um token correspondente a entrada.
 int scanner(char* entrada){  
@@ -606,6 +651,16 @@ q95:
 	return 0;			
 }
 
+//Funcao que imprime erros lexicos.
+void imprimeErroLexico(char programa[], int *pos, char lexema[]){
+    int i, linha = 1;
+    for(i=0;i<(*pos);i++){
+        if(programa[i]=='\n') linha++;
+    }
+    printf("ERRO: lexema '%s' nao reconhecido! (linha %d)\n", lexema, linha);
+    exit(0);
+}
+
 //Funcao que faz a analise lexica de trecho do programa fonte.
 int analisadorLexico(char programa[], int *pos){
 	char lexema[100];
@@ -620,49 +675,39 @@ int analisadorLexico(char programa[], int *pos){
 	lexema[i+1] = '\0';
 	int token = scanner(lexema);
 	if(!token) imprimeErroLexico(programa, pos, lexema);
-	else return token;
+	return token;
 }
 
-//Funcao que imprime erros lexicos.
-int imprimeErroLexico(char programa[], int *pos, char lexema[]){
-	int i, linha = 1;
-	for(i=0;i<(*pos);i++){
-		if(programa[i]=='\n') linha++;
-	}
-	printf("ERRO: lexema '%s' nao reconhecido! (linha %d)", lexema, linha);
-	exit(0);
+void imprimeErroSemantico(char programa[], int* pos, int esperado){
+    int i, linha = 1;
+    for(i=0;i<(*pos);i++){
+        if(programa[i]=='\n') linha++;
+    }
+    printf("ERRO: esperava token %s, encontrou %s (linha %d)\n", buscaToken(esperado), buscaToken(lookahead), linha);
 }
 
 //Funcao que confere se o token encontrado confere com o esperado.
 int  match(int token, char programa[], int *pos){
 	if (lookahead == token){
 		lookahead = analisadorLexico(programa, pos);
-		return 1;
-	}
-	imprimeErroSemantico(programa, pos, token);  
-}
-
-int imprimeErroSemantico(char programa[], int* pos, int esperado){
-	int i, linha = 1;
-	for(i=0;i<(*pos);i++){
-		if(programa[i]=='\n') linha++;
-	}
-	printf("%s",buscaToken(esperado));
-	printf("ERRO: esperava token %s, encontrou %s (linha %d)", buscaToken(esperado), buscaToken(lookahead), linha);
-	exit(0);
-}
-
-int programa(char programa[], int *pos){
-	match(103, programa, pos);  
-	match(402, programa, pos); 
-	match(301, programa, pos); 
-	bloco(programa, pos); 
-	match(302, programa, pos);
-	return 1;
+		if(lookahead) return 1;
+        
+	}else imprimeErroSemantico(programa, pos, token);
+    return 0;
 }
 
 int bloco(char programa[], int *pos){
-	return 0;
+    return 1;
+}
+
+int programa(char programa[], int *pos){
+	if(match(103, programa, pos) &&
+       match(402, programa, pos) &&
+       match(301, programa, pos) &&
+       bloco(programa, pos) &&
+       match(302, programa, pos)
+       ) return 1;
+    return 0;
 }
 
 int main(){
@@ -672,8 +717,9 @@ int main(){
     char* entrada = leArquivo(arquivo, nome);
 	int pos = 0;
 	lookahead = analisadorLexico(entrada, &pos);
-	programa(entrada, &pos);
-	printf("Analises lexica e semantica efetuadas com sucesso!\n");
-	printf("Nenhum erro encontrado!");
+    if(programa(entrada, &pos)){
+        printf("Analises lexica e semantica efetuadas com sucesso!\n");
+        printf("Nenhum erro encontrado!\n");
+    }
     return 0;
 }
