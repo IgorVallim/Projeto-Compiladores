@@ -46,9 +46,39 @@
 #define _VALOR_ 403
 
 int lookahead;
-int bloco(char programa[], int *pos);
-int comandoComposto(char programa[], int *pos);
-int expressaoSimples(char programa[], int *pos);
+
+//Prototipos das funcoes do programa
+int programa();
+int bloco();
+int parteDeclaracaoDeVariaveis();
+int declaracaoDeVariaveis();
+int listaDeIdentificadores();
+int parteDeclaracoesDeFuncoes();
+int declaracaoDeFuncao();
+int parametrosFormais();
+int parametroFormal();
+int comandoComposto();
+int comando();
+int atribuicaoOuChamadaDeProcedimento();
+int atribuicao();
+int chamadaDeProcedimento();
+int listaDeParametros();
+int comandoCondicional();
+int comandoRepetitivo();
+int expressao();
+int relacao();
+int expressaoSimples();
+int termo();
+int fator();
+int booleano();
+int match();
+void imprimeErroSintatico();
+void imprimeErroLexico();
+int scanner();
+int analisadorLexico();
+void imprimeErroLexico();
+char* leArquivo();
+char* buscaToken();
 
 //Funcao que le o arquivo contendo o programa fonte, e retorna uma String com seu conteudo.
 char* leArquivo(FILE* arquivo, char nome[]){
@@ -663,12 +693,28 @@ q95:
 
 //Funcao que imprime erros lexicos.
 void imprimeErroLexico(char programa[], int *pos, char lexema[]){
-    int i, linha = 1;
+    int i, linhaNum = 1, comecoLinha = 0;
     for(i=0;i<(*pos);i++){
-        if(programa[i]=='\n') linha++;
+        if(programa[i]=='\n'){
+        	linhaNum++;
+        	comecoLinha = i+1;
+		} 
     }
-    printf("ERRO: lexema '%s' nao reconhecido! (linha %d)\n", lexema, linha);
+    char* linha = malloc((*pos)-comecoLinha);
+	int j = 0;
+	i = comecoLinha;
+    while(programa[i]!='\n' && programa[i]!='\0'){
+    	if(!iscntrl(programa[i])){
+    		linha[j] = programa[i];
+    		j++;	
+		}
+		i++;		
+	}
+	linha[j] = '\0';
+    printf("ERRO: lexema '%s' nao reconhecido!\n", lexema);
+    printf("Linha %d: '%s'\n", linhaNum, linha);
     exit(0);
+    
 }
 
 //Funcao que faz a analise lexica de trecho do programa fonte.
@@ -676,10 +722,18 @@ int analisadorLexico(char programa[], int *pos){
 	char lexema[100];
 	int i = 0;
 	while(programa[*pos]==' ' || (iscntrl(programa[*pos]) && programa[*pos]!='\0')) (*pos)++;
-	while(programa[*pos]!=' ' && !iscntrl(programa[*pos])  && programa[*pos]!='\0' ){
-        lexema[i] = programa[*pos];
-		(*pos)++;
-		i++;
+	if(programa[(*pos)]=='/' && programa[(*pos)+1]=='*'){
+		while(!(programa[(*pos)-2]=='*' && programa[(*pos)-1]=='/') && programa[*pos]!='\0'){
+			lexema[i] = programa[*pos];
+			(*pos)++;
+			i++;
+		}	
+	}else{
+		while(programa[*pos]!=' ' && !iscntrl(programa[*pos])  && programa[*pos]!='\0' ){
+        	lexema[i] = programa[*pos];
+			(*pos)++;
+			i++;
+		}	
 	}
 	if(i!=0){
 		lexema[i] = ' ';
@@ -693,18 +747,36 @@ int analisadorLexico(char programa[], int *pos){
 	
 }
 
+//Funcao que imprime erros sintaticos.
 void imprimeErroSintatico(char programa[], int* pos, int esperado[]){
-    int i, linha = 1;
+    int i, comecoLinha = 0, linhaNum = 1;
     for(i=0;i<(*pos);i++){
-        if(programa[i]=='\n') linha++;
+        if(programa[i]=='\n'){
+        	linhaNum++;
+        	comecoLinha = i+1;
+		} 
     }
+	char* linha = malloc((*pos)-comecoLinha);
+	int j = 0;
+	i = comecoLinha;
+    while(programa[i]!='\n' && programa[i]!='\0'){
+    	if(!iscntrl(programa[i])){
+    		linha[j] = programa[i];
+    		j++;	
+		}
+		i++;
+    		
+	}
+	linha[j] = '\0';
     printf("ERRO: esperava token %s", buscaToken(esperado[0]));
     i = 1;
     while(esperado[i]>=101 && esperado[i]<=403){
         printf(" ou %s",buscaToken(esperado[i]));
         i++;
     }
-    printf(", encontrou %s (linha %d)\n", buscaToken(lookahead), linha);
+    printf(", encontrou %s\n", buscaToken(lookahead), linha);
+    printf("Linha %d: '%s'\n", linhaNum, linha);
+    
 }
 
 //Funcao que confere se o token encontrado confere com o esperado.
@@ -720,17 +792,35 @@ int  match(int token, char programa[], int *pos){
 
 //---------------------------------------------------------Analisador Sintatico---------------------------------------------------------
 
-int listaDeIdentificadores(char programa[], int *pos){
-    if(!match(_IDENTIFICADOR_, programa, pos)) return 0;
-    if(lookahead==_VIRGULA_){
-        if(
-           !match(_VIRGULA_, programa, pos) ||
-           !listaDeIdentificadores(programa, pos)
-           ) return 0;
+//Regra #1:  <programa> ::=  program <identificador>  { <bloco> }
+int programa(char programa[], int *pos){
+	if(match(_PROGRAM_, programa, pos) &&
+       match(_IDENTIFICADOR_, programa, pos) &&
+       match(_ABRE_CHAVE_, programa, pos) &&
+       bloco(programa, pos) &&
+       match(_FECHA_CHAVE_, programa, pos)
+       ) return 1;
+    return 0;
+}
+
+//Regra #2:  <bloco> ::= <parte declaracoes de variaveis> <parte declaracoes de funcoes> <comando composto> 
+int bloco(char programa[], int *pos){
+    if(parteDeclaracaoDeVariaveis(programa, pos) &&
+       parteDeclaracoesDeFuncoes(programa, pos) &&
+       comandoComposto(programa, pos)
+       ) return 1;
+    return 0;
+}
+
+//Regra #3:  <parte declaracoes de variaveis> ::= { <declaracao de variaveis> }
+int parteDeclaracaoDeVariaveis(char programa[], int *pos){
+    while(lookahead==_INT_ || lookahead==_BOOL_){
+        if(!declaracaoDeVariaveis(programa, pos)) return 0;
     }
     return 1;
 }
 
+//Regra #4:  <declaracao de variaveis> ::= ( int | bool ) <lista de identificadores>  ;
 int declaracaoDeVariaveis(char programa[], int *pos){
     if(lookahead==_INT_){
         if(
@@ -753,13 +843,55 @@ int declaracaoDeVariaveis(char programa[], int *pos){
     return 0;
 }
 
-int parteDeclaracaoDeVariaveis(char programa[], int *pos){
-    while(lookahead==_INT_ || lookahead==_BOOL_){
-        if(!declaracaoDeVariaveis(programa, pos)) return 0;
+//Regra #5:  <lista de identificadores> ::= <identificador> [ , <lista de identificadores> ]
+int listaDeIdentificadores(char programa[], int *pos){
+    if(!match(_IDENTIFICADOR_, programa, pos)) return 0;
+    if(lookahead==_VIRGULA_){
+        if(
+           !match(_VIRGULA_, programa, pos) ||
+           !listaDeIdentificadores(programa, pos)
+           ) return 0;
     }
     return 1;
 }
 
+//Regra #6:  <parte declaracoes de funcoes> ::= { <declaração de funcao> ; }
+int parteDeclaracoesDeFuncoes(char programa[], int *pos){
+    while(lookahead==_VOID_){
+        if(!(declaracaoDeFuncao(programa, pos) &&
+           match(_PONTO_E_VIRGULA_, programa, pos))) return 0;
+    }
+    return 1;
+}
+
+//Regra #7:  <declaração de funcao> ::= void <identificador>  ( [ <parametros formais> ] ) { <bloco> }
+int declaracaoDeFuncao(char programa[], int *pos){
+	if(!match(_VOID_, programa, pos) ||
+       !match(_IDENTIFICADOR_, programa, pos) ||
+       !match(_ABRE_PARENTESE_, programa, pos)
+       ) return 0;
+	if(lookahead==_INT_ || lookahead==_BOOL_) if(!parametrosFormais(programa, pos)) return 0;
+	if(!match(_FECHA_PARENTESE_, programa, pos) ||
+       !match(_ABRE_CHAVE_, programa, pos) ||
+       !bloco(programa, pos) ||
+       !match(_FECHA_CHAVE_, programa, pos)
+       ) return 0;
+    return 1;
+}
+
+//Regra #8:  <parametros formais> ::= <parametro formal> [ , <parametros formais> ]
+int parametrosFormais(char programa[], int *pos){
+    if(!parametroFormal(programa, pos)) return 0;
+    if(lookahead==_VIRGULA_){
+        if(
+           !match(_VIRGULA_, programa, pos) ||
+           !parametrosFormais(programa, pos)
+           ) return 0;
+    }
+    return 1;
+}
+
+//Regra #9:  <parametro formal> ::= ( int | bool ) <identificador> 
 int parametroFormal(char programa[], int *pos){
     if(lookahead==_INT_){
         if(match(_INT_, programa, pos) &&
@@ -778,36 +910,71 @@ int parametroFormal(char programa[], int *pos){
     return 0;
 }
 
-int parametrosFormais(char programa[], int *pos){
-    if(!parametroFormal(programa, pos)) return 0;
-    if(lookahead==_VIRGULA_){
-        if(
-           !match(_VIRGULA_, programa, pos) ||
-           !parametrosFormais(programa, pos)
-           ) return 0;
+//Regra #10:  <comando composto> ::= <comando> [ <comando composto> ]
+int comandoComposto(char programa[], int *pos){
+    if(!comando(programa, pos)) return 0;
+    if(lookahead==_IDENTIFICADOR_ || lookahead==_IF_ || lookahead==_PRINT_ || lookahead==_WHILE_){
+        if(!comandoComposto(programa, pos)) return 0;
     }
     return 1;
 }
 
-int declaracaoDeFuncao(char programa[], int *pos){
-	if(!match(_VOID_, programa, pos) ||
-       !match(_IDENTIFICADOR_, programa, pos) ||
-       !match(_ABRE_PARENTESE_, programa, pos)
-       ) return 0;
-	if(lookahead==_INT_ || lookahead==_BOOL_) if(!parametrosFormais(programa, pos)) return 0;
-	if(!match(_FECHA_PARENTESE_, programa, pos) ||
-       !match(_ABRE_CHAVE_, programa, pos) ||
-       !bloco(programa, pos) ||
-       !match(_FECHA_CHAVE_, programa, pos)
-       ) return 0;
-    return 1;
+/*Regra #11:  <comando> ::= <identificador> <atribuicao ou chamada de procedimento> | <comando condicional> 
+                            | <comando repetitivo> | print ( <identificador> ) ; */
+int comando(char programa[], int *pos){
+    if(lookahead==_IDENTIFICADOR_){
+        if(match(_IDENTIFICADOR_, programa, pos) &&
+           atribuicaoOuChamadaDeProcedimento(programa, pos)
+           ) return 1;
+    }else if(lookahead==_IF_){
+        if(comandoCondicional(programa, pos)) return 1;
+    }else if(lookahead==_WHILE_){
+        if(comandoRepetitivo(programa, pos)) return 1;
+    }else if(lookahead==_PRINT_){
+        if(match(_PRINT_, programa, pos) &&
+           match(_ABRE_PARENTESE_, programa, pos) &&
+           match(_IDENTIFICADOR_, programa, pos) &&
+           match(_FECHA_PARENTESE_, programa, pos) &&
+           match(_PONTO_E_VIRGULA_, programa, pos)
+           ) return 1;
+    }else{
+        int esperado[4] = {_IDENTIFICADOR_, _IF_, _WHILE_, _PRINT_};
+        imprimeErroSintatico(programa, pos, esperado);
+    }
+    return 0;
 }
 
-int parteDeclaracoesDeFuncoes(char programa[], int *pos){
-    while(lookahead==_VOID_){
-        if(!(declaracaoDeFuncao(programa, pos) &&
-           match(_PONTO_E_VIRGULA_, programa, pos))) return 0;
+//Regra #12:  <atribuicao ou chamada de procedimento> ::= <atribuicao> | <chamada de procedimento> 
+int atribuicaoOuChamadaDeProcedimento(char programa[], int *pos){
+    if(lookahead==_ATRIBUICAO_){
+        if(atribuicao(programa, pos)) return 1;
+    }else if(lookahead==_ABRE_PARENTESE_){
+        if(chamadaDeProcedimento(programa, pos)) return 1;
+    }else{
+        int esperado[2] = {_ATRIBUICAO_, _ABRE_PARENTESE_};
+        imprimeErroSintatico(programa, pos, esperado);
     }
+    return 0;
+}
+
+//Regra #13:   <atribuicao> ::= = <expressao> ;
+int atribuicao(char programa[], int *pos){
+    if(match(_ATRIBUICAO_, programa, pos) &&
+       expressao(programa, pos) &&
+       match(_PONTO_E_VIRGULA_, programa, pos)
+       ) return 1;
+    return 0;
+}
+
+//Regra #14:  <chamada de procedimento> ::= ( [ <lista de parâmetros> ] );
+int chamadaDeProcedimento(char programa[], int *pos){
+    if(!match(_ABRE_PARENTESE_, programa, pos)) return 0;
+    if(lookahead==_IDENTIFICADOR_ || lookahead==_TRUE_ || lookahead==_FALSE_ || lookahead==_VALOR_){
+        if(!listaDeParametros(programa, pos)) return 0;
+    }
+    if(!match(_FECHA_PARENTESE_, programa, pos) ||
+       !match(_PONTO_E_VIRGULA_, programa, pos)
+       ) return 0;
     return 1;
 }
 
@@ -902,14 +1069,6 @@ int expressao(char programa[], int *pos){
     return 1;
 }
 
-int atribuicao(char programa[], int *pos){
-    if(match(_ATRIBUICAO_, programa, pos) &&
-       expressao(programa, pos) &&
-       match(_PONTO_E_VIRGULA_, programa, pos)
-       ) return 1;
-    return 0;
-}
-
 int listaDeParametros(char programa[], int *pos){
     if(lookahead==_IDENTIFICADOR_){
         if(!match(_IDENTIFICADOR_, programa, pos)) return 0;
@@ -928,29 +1087,6 @@ int listaDeParametros(char programa[], int *pos){
            ) return 0;
     }
     return 1;
-}
-
-int chamadaDeProcedimento(char programa[], int *pos){
-    if(!match(_ABRE_PARENTESE_, programa, pos)) return 0;
-    if(lookahead==_IDENTIFICADOR_ || lookahead==_TRUE_ || lookahead==_FALSE_ || lookahead==_VALOR_){
-        if(!listaDeParametros(programa, pos)) return 0;
-    }
-    if(!match(_FECHA_PARENTESE_, programa, pos) ||
-       !match(_PONTO_E_VIRGULA_, programa, pos)
-       ) return 0;
-    return 1;
-}
-
-int resto(char programa[], int *pos){
-    if(lookahead==_ATRIBUICAO_){
-        if(atribuicao(programa, pos)) return 1;
-    }else if(lookahead==_ABRE_PARENTESE_){
-        if(chamadaDeProcedimento(programa, pos)) return 1;
-    }else{
-        int esperado[2] = {_ATRIBUICAO_, _ABRE_PARENTESE_};
-        imprimeErroSintatico(programa, pos, esperado);
-    }
-    return 0;
 }
 
 int comandoRepetitivo(char programa[], int *pos){
@@ -984,54 +1120,6 @@ int comandoCondicional(char programa[], int *pos){
     return 1;
 }
 
-int comando(char programa[], int *pos){
-    if(lookahead==_IDENTIFICADOR_){
-        if(match(_IDENTIFICADOR_, programa, pos) &&
-           resto(programa, pos)
-           ) return 1;
-    }else if(lookahead==_IF_){
-        if(comandoCondicional(programa, pos)) return 1;
-    }else if(lookahead==_WHILE_){
-        if(comandoRepetitivo(programa, pos)) return 1;
-    }else if(lookahead==_PRINT_){
-        if(match(_PRINT_, programa, pos) &&
-           match(_ABRE_PARENTESE_, programa, pos) &&
-           match(_IDENTIFICADOR_, programa, pos) &&
-           match(_FECHA_PARENTESE_, programa, pos) &&
-           match(_PONTO_E_VIRGULA_, programa, pos)
-           ) return 1;
-    }else{
-        int esperado[4] = {_IDENTIFICADOR_, _IF_, _WHILE_, _PRINT_};
-        imprimeErroSintatico(programa, pos, esperado);
-    }
-    return 0;
-}
-
-int comandoComposto(char programa[], int *pos){
-    if(!comando(programa, pos)) return 0;
-    if(lookahead==_IDENTIFICADOR_ || lookahead==_IF_ || lookahead==_PRINT_ || lookahead==_WHILE_){
-        if(!comandoComposto(programa, pos)) return 0;
-    }
-    return 1;
-}
-
-int bloco(char programa[], int *pos){
-    if(parteDeclaracaoDeVariaveis(programa, pos) &&
-       parteDeclaracoesDeFuncoes(programa, pos) &&
-       comandoComposto(programa, pos)
-       ) return 1;
-    return 0;
-}
-
-int programa(char programa[], int *pos){
-	if(match(_PROGRAM_, programa, pos) &&
-       match(_IDENTIFICADOR_, programa, pos) &&
-       match(_ABRE_CHAVE_, programa, pos) &&
-       bloco(programa, pos) &&
-       match(_FECHA_CHAVE_, programa, pos)
-       ) return 1;
-    return 0;
-}
 
 //--------------------------------------------------------------------------------------------------------------------------------------
 
