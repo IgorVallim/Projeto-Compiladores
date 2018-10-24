@@ -1,4 +1,5 @@
 program _correto { 
+	
 	int _a , _b , _c ; 
 	bool _d , _e , _f ;
 	void _proc ( int _arg ) {
@@ -8,6 +9,9 @@ program _correto {
 			_a = 12 ; 
 		}
 	} ;
+	if ( 8 ) {
+		_a = 8 ; 
+	}
 	_a = 2 ; 
 	_b = 10 ;
  	_c = 11 ; 
@@ -28,5 +32,5 @@ program _correto {
 		} else {
 			_a = _a - 1 ;
 		} 
-	}
+	} 
  }

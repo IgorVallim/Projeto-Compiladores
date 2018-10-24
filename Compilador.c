@@ -178,7 +178,7 @@ q0:
 q1:
 	//Cada vez que ocorre uma transicao, e consumido um caractere da entrada.
     entrada++; 
-    //Representação de uma transicao.
+    //Representaco de uma transicao.
     if(*entrada=='f') goto q2; 
     else if(*entrada=='n') goto q4;
     //Funcao retorna 0, caso apareca um caractere nao previsto nesse estado.
@@ -699,16 +699,20 @@ void imprimeErroSintatico(char programa[], int* pos, int esperado[]){
         if(programa[i]=='\n') linha++;
     }
     printf("ERRO: esperava token %s", buscaToken(esperado[0]));
-    for(i=1;i<sizeof(*esperado)/sizeof(int);i++) printf(" ou %s",buscaToken(esperado[i]));
+    i = 1;
+    while(esperado[i]>=101 && esperado[i]<=403){
+        printf(" ou %s",buscaToken(esperado[i]));
+        i++;
+    }
     printf(", encontrou %s (linha %d)\n", buscaToken(lookahead), linha);
 }
 
 //Funcao que confere se o token encontrado confere com o esperado.
 int  match(int token, char programa[], int *pos){
-    
     if (lookahead == token){
 		lookahead = analisadorLexico(programa, pos);
-		if(lookahead) return 1;
+		while(lookahead==_COMENTARIO_) lookahead = analisadorLexico(programa, pos);
+        if(lookahead) return 1;
         
     }else imprimeErroSintatico(programa, pos, &token);
     return 0;
@@ -717,10 +721,10 @@ int  match(int token, char programa[], int *pos){
 //---------------------------------------------------------Analisador Sintatico---------------------------------------------------------
 
 int listaDeIdentificadores(char programa[], int *pos){
-    if(!match(402, programa, pos)) return 0;
-    if(lookahead==304){
+    if(!match(_IDENTIFICADOR_, programa, pos)) return 0;
+    if(lookahead==_VIRGULA_){
         if(
-           !match(304, programa, pos) ||
+           !match(_VIRGULA_, programa, pos) ||
            !listaDeIdentificadores(programa, pos)
            ) return 0;
     }
@@ -728,51 +732,57 @@ int listaDeIdentificadores(char programa[], int *pos){
 }
 
 int declaracaoDeVariaveis(char programa[], int *pos){
-    if(lookahead==102){
+    if(lookahead==_INT_){
         if(
-           match(102, programa, pos) &&
+           match(_INT_, programa, pos) &&
            listaDeIdentificadores(programa, pos) &&
-           match(303, programa, pos)
+           match(_PONTO_E_VIRGULA_, programa, pos)
            ) return 1;
         return 0;
-    }else if(lookahead==107){
+    }else if(lookahead==_BOOL_){
         if(
-           match(107, programa, pos) &&
+           match(_BOOL_, programa, pos) &&
            listaDeIdentificadores(programa, pos) &&
-           match(303, programa, pos)
+           match(_PONTO_E_VIRGULA_, programa, pos)
            ) return 1;
         return 0;
+    }else{
+        int esperado[2] = {_INT_, _BOOL_};
+        imprimeErroSintatico(programa, pos, esperado);
     }
     return 0;
 }
 
 int parteDeclaracaoDeVariaveis(char programa[], int *pos){
-    while(lookahead==102 || lookahead==107){
+    while(lookahead==_INT_ || lookahead==_BOOL_){
         if(!declaracaoDeVariaveis(programa, pos)) return 0;
     }
     return 1;
 }
 
 int parametroFormal(char programa[], int *pos){
-    if(lookahead==102){
-        if(match(102, programa, pos) &&
-           match(402, programa, pos)
+    if(lookahead==_INT_){
+        if(match(_INT_, programa, pos) &&
+           match(_IDENTIFICADOR_, programa, pos)
            ) return 1;
         return 0;
-    }else if(lookahead==107){
-        if(match(107, programa, pos) &&
-           match(402, programa, pos)
+    }else if(lookahead==_BOOL_){
+        if(match(_BOOL_, programa, pos) &&
+           match(_IDENTIFICADOR_, programa, pos)
            ) return 1;
         return 0;
+    }else{
+        int esperado[2] = {_INT_, _BOOL_};
+        imprimeErroSintatico(programa, pos, esperado);
     }
     return 0;
 }
 
 int parametrosFormais(char programa[], int *pos){
     if(!parametroFormal(programa, pos)) return 0;
-    if(lookahead==304){
+    if(lookahead==_VIRGULA_){
         if(
-           !match(304, programa, pos) ||
+           !match(_VIRGULA_, programa, pos) ||
            !parametrosFormais(programa, pos)
            ) return 0;
     }
@@ -780,91 +790,103 @@ int parametrosFormais(char programa[], int *pos){
 }
 
 int declaracaoDeFuncao(char programa[], int *pos){
-	if(!match(105, programa, pos) ||
-       !match(402, programa, pos) ||
-       !match(305, programa, pos)
+	if(!match(_VOID_, programa, pos) ||
+       !match(_IDENTIFICADOR_, programa, pos) ||
+       !match(_ABRE_PARENTESE_, programa, pos)
        ) return 0;
-	if(lookahead==102 || lookahead==107) if(!parametrosFormais(programa, pos)) return 0;
-	if(!match(306, programa, pos) ||
-       !match(301, programa, pos) ||
+	if(lookahead==_INT_ || lookahead==_BOOL_) if(!parametrosFormais(programa, pos)) return 0;
+	if(!match(_FECHA_PARENTESE_, programa, pos) ||
+       !match(_ABRE_CHAVE_, programa, pos) ||
        !bloco(programa, pos) ||
-       !match(302, programa, pos)
+       !match(_FECHA_CHAVE_, programa, pos)
        ) return 0;
     return 1;
 }
 
 int parteDeclaracoesDeFuncoes(char programa[], int *pos){
-    while(lookahead==105){
+    while(lookahead==_VOID_){
         if(!(declaracaoDeFuncao(programa, pos) &&
-           match(303, programa, pos))) return 0;
+           match(_PONTO_E_VIRGULA_, programa, pos))) return 0;
     }
     return 1;
 }
 
 int booleano(char programa[], int *pos){
-    if(lookahead==106){
-        if(match(106, programa, pos)) return 1;
-    }else if(lookahead==108){
-        if(match(108, programa, pos)) return 1;
+    if(lookahead==_TRUE_){
+        if(match(_TRUE_, programa, pos)) return 1;
+    }else if(lookahead==_FALSE_){
+        if(match(_FALSE_, programa, pos)) return 1;
+    }else{
+        int esperado[2] = {_TRUE_, _FALSE_};
+        imprimeErroSintatico(programa, pos, esperado);
     }
     return 0;
 }
 
 int fator(char programa[], int *pos){
-    if(lookahead==403){
-        if(match(403, programa, pos)) return 1;
-    }else if(lookahead==402){
-        if(match(402, programa, pos)) return 1;
-    }else if(lookahead==106 || lookahead==108){
+    if(lookahead==_VALOR_){
+        if(match(_VALOR_, programa, pos)) return 1;
+    }else if(lookahead==_IDENTIFICADOR_){
+        if(match(_IDENTIFICADOR_, programa, pos)) return 1;
+    }else if(lookahead==_TRUE_ || lookahead==_FALSE_){
         if(booleano(programa, pos)) return 1;
-    }else if(lookahead==305){
-        if(match(305, programa, pos) &&
+    }else if(lookahead==_ABRE_PARENTESE_){
+        if(match(_ABRE_PARENTESE_, programa, pos) &&
            expressaoSimples(programa, pos) &&
-           match(306, programa, pos)
+           match(_FECHA_PARENTESE_, programa, pos)
            ) return 1;
+    }else{
+        int esperado[5] = {_VALOR_, _IDENTIFICADOR_, _TRUE_, _FALSE_, _ABRE_PARENTESE_};
+        imprimeErroSintatico(programa, pos, esperado);
     }
+   
     return 0;
 }
 
 int termo(char programa[], int *pos){
     if(!fator(programa, pos)) return 0;
-    if(lookahead==207){
-        if(!match(207, programa, pos) ||
+    if(lookahead==_DIVIDIDO_){
+        if(!match(_DIVIDIDO_, programa, pos) ||
            !termo(programa, pos)
            ) return 0;
-    }else if(lookahead==208){
-        if(!match(208, programa, pos) ||
+        return 1;
+    }else if(lookahead==_VEZES_){
+        if(!match(_VEZES_, programa, pos) ||
            !termo(programa, pos)
            ) return 0;
+        return 1;
     }
     return 1;
 }
 
 int relacao(char programa[], int *pos){
-    if(lookahead==201){
-        if(match(201, programa, pos)) return 1;
-    }else if(lookahead==202){
-        if(match(202, programa, pos)) return 1;
-    }else if(lookahead==203){
-        if(match(203, programa, pos)) return 1;
-    }else if(lookahead==204){
-        if(match(204, programa, pos)) return 1;
-    }else if(lookahead==206){
-        if(match(206, programa, pos)) return 1;
-    }else if(lookahead==209){
-        if(match(209, programa, pos)) return 1;
+    if(lookahead==_MAIOR_IGUAL_){
+        if(match(_MAIOR_IGUAL_, programa, pos)) return 1;
+    }else if(lookahead==_MAIOR_){
+        if(match(_MAIOR_, programa, pos)) return 1;
+    }else if(lookahead==_MENOR_){
+        if(match(_MENOR_, programa, pos)) return 1;
+    }else if(lookahead==_MENOR_IGUAL_){
+        if(match(_MENOR_IGUAL_, programa, pos)) return 1;
+    }else if(lookahead==_IGUALDADE_){
+        if(match(_IGUALDADE_, programa, pos)) return 1;
+    }else if(lookahead==_DIFERENTE_){
+        if(match(_DIFERENTE_, programa, pos)) return 1;
+    }else{
+        int esperado[6] = {_MAIOR_IGUAL_, _MAIOR_, _MENOR_, _MENOR_IGUAL_, _IGUALDADE_, _DIFERENTE_};
+        imprimeErroSintatico(programa, pos, esperado);
     }
     return 0;
 }
 
 int expressaoSimples(char programa[], int *pos){
-    if(lookahead==210){
-        if(!match(210, programa, pos)) return 0;
-    }else if(lookahead==211){
-        if(!match(211, programa, pos)) return 0;
+    if(lookahead==_MAIS_){
+        if(!match(_MAIS_, programa, pos)) return 0;
+    }else if(lookahead==_MENOS_){
+        if(!match(_MENOS_, programa, pos)) return 0;
     }
     if(!termo(programa, pos)) return 0;
-    if(lookahead==210 || lookahead==211 || lookahead==402 || lookahead==403 || lookahead==106 || lookahead==108 || lookahead==305){
+    if(lookahead==_MAIS_ || lookahead==_MENOS_ || lookahead==_IDENTIFICADOR_ || lookahead==_VALOR_ || lookahead==_TRUE_ || lookahead==_FALSE_ || lookahead==_ABRE_PARENTESE_){
         if(!expressaoSimples(programa, pos)) return 0;
     }
     return 1;
@@ -872,7 +894,7 @@ int expressaoSimples(char programa[], int *pos){
 
 int expressao(char programa[], int *pos){
     if(!expressaoSimples(programa, pos)) return 0;
-    if(lookahead==201 || lookahead==202 || lookahead==203 || lookahead==204 || lookahead==206 || lookahead==209){
+    if(lookahead==_MAIOR_IGUAL_ || lookahead==_MAIOR_ || lookahead==_MENOR_ || lookahead==_MENOR_IGUAL_ || lookahead==_IGUALDADE_ || lookahead==_DIFERENTE_){
         if(!relacao(programa, pos) ||
            !expressaoSimples(programa, pos)
            ) return 0;
@@ -881,23 +903,27 @@ int expressao(char programa[], int *pos){
 }
 
 int atribuicao(char programa[], int *pos){
-    if(match(205, programa, pos) &&
+    if(match(_ATRIBUICAO_, programa, pos) &&
        expressao(programa, pos) &&
-       match(303, programa, pos)
+       match(_PONTO_E_VIRGULA_, programa, pos)
        ) return 1;
     return 0;
 }
 
 int listaDeParametros(char programa[], int *pos){
-    if(lookahead==402){
-        if(!match(402, programa, pos)) return 0;
-    }else if(lookahead==106 || lookahead==108){
+    if(lookahead==_IDENTIFICADOR_){
+        if(!match(_IDENTIFICADOR_, programa, pos)) return 0;
+    }else if(lookahead==_TRUE_ || lookahead==_FALSE_){
         if(!booleano(programa, pos)) return 0;
-    }else if(lookahead==403){
-        if(!match(403, programa, pos)) return 0;
-    }else return 0;
-    if(lookahead==304){
-        if(!match(304, programa, pos) ||
+    }else if(lookahead==_VALOR_){
+        if(!match(_VALOR_, programa, pos)) return 0;
+    }else{
+        int esperado[4] = {_IDENTIFICADOR_, _TRUE_, _FALSE_, _VALOR_};
+        imprimeErroSintatico(programa, pos, esperado);
+        return 0;
+    }
+    if(lookahead==_VIRGULA_){
+        if(!match(_VIRGULA_, programa, pos) ||
            !listaDeParametros(programa, pos)
            ) return 0;
     }
@@ -905,79 +931,85 @@ int listaDeParametros(char programa[], int *pos){
 }
 
 int chamadaDeProcedimento(char programa[], int *pos){
-    if(!match(305, programa, pos)) return 0;
-    if(lookahead==402 || lookahead==106 || lookahead==108 || lookahead==403){
+    if(!match(_ABRE_PARENTESE_, programa, pos)) return 0;
+    if(lookahead==_IDENTIFICADOR_ || lookahead==_TRUE_ || lookahead==_FALSE_ || lookahead==_VALOR_){
         if(!listaDeParametros(programa, pos)) return 0;
     }
-    if(!match(306, programa, pos) ||
-       !match(303, programa, pos)
+    if(!match(_FECHA_PARENTESE_, programa, pos) ||
+       !match(_PONTO_E_VIRGULA_, programa, pos)
        ) return 0;
     return 1;
 }
 
 int resto(char programa[], int *pos){
-    if(lookahead==205){
+    if(lookahead==_ATRIBUICAO_){
         if(atribuicao(programa, pos)) return 1;
-    }else if(lookahead==305){
+    }else if(lookahead==_ABRE_PARENTESE_){
         if(chamadaDeProcedimento(programa, pos)) return 1;
+    }else{
+        int esperado[2] = {_ATRIBUICAO_, _ABRE_PARENTESE_};
+        imprimeErroSintatico(programa, pos, esperado);
     }
     return 0;
 }
 
 int comandoRepetitivo(char programa[], int *pos){
-    if(match(109, programa, pos) &&
-       match(305, programa, pos) &&
+    if(match(_WHILE_, programa, pos) &&
+       match(_ABRE_PARENTESE_, programa, pos) &&
        expressao(programa, pos) &&
-       match(306, programa, pos) &&
-       match(301, programa, pos) &&
+       match(_FECHA_PARENTESE_, programa, pos) &&
+       match(_ABRE_CHAVE_, programa, pos) &&
        comandoComposto(programa, pos) &&
-       match(302, programa, pos)
+       match(_FECHA_CHAVE_, programa, pos)
        ) return 1;
     return 0;
 }
 
 int comandoCondicional(char programa[], int *pos){
-    if(!match(101, programa, pos) ||
-       !match(305, programa, pos) ||
+    if(!match(_IF_, programa, pos) ||
+       !match(_ABRE_PARENTESE_, programa, pos) ||
        !expressao(programa, pos) ||
-       !match(306, programa, pos) ||
-       !match(301, programa, pos) ||
+       !match(_FECHA_PARENTESE_, programa, pos) ||
+       !match(_ABRE_CHAVE_, programa, pos) ||
        !comandoComposto(programa, pos) ||
-       !match(302, programa, pos)
+       !match(_FECHA_CHAVE_, programa, pos)
        ) return 0;
-    if(lookahead==110){
-        if(!match(110, programa, pos) ||
-           !match(301, programa, pos) ||
+    if(lookahead==_ELSE_){
+        if(!match(_ELSE_, programa, pos) ||
+           !match(_ABRE_CHAVE_, programa, pos) ||
            !comandoComposto(programa, pos) ||
-           !match(302, programa, pos)
+           !match(_FECHA_CHAVE_, programa, pos)
            ) return 1;
     }
     return 1;
 }
 
 int comando(char programa[], int *pos){
-    if(lookahead==402){
-        if(match(402, programa, pos) &&
+    if(lookahead==_IDENTIFICADOR_){
+        if(match(_IDENTIFICADOR_, programa, pos) &&
            resto(programa, pos)
            ) return 1;
-    }else if(lookahead==101){
+    }else if(lookahead==_IF_){
         if(comandoCondicional(programa, pos)) return 1;
-    }else if(lookahead==109){
+    }else if(lookahead==_WHILE_){
         if(comandoRepetitivo(programa, pos)) return 1;
-    }else if(lookahead==104){
-        if(match(104, programa, pos) &&
-           match(305, programa, pos) &&
-           match(402, programa, pos) &&
-           match(306, programa, pos) &&
-           match(303, programa, pos)
+    }else if(lookahead==_PRINT_){
+        if(match(_PRINT_, programa, pos) &&
+           match(_ABRE_PARENTESE_, programa, pos) &&
+           match(_IDENTIFICADOR_, programa, pos) &&
+           match(_FECHA_PARENTESE_, programa, pos) &&
+           match(_PONTO_E_VIRGULA_, programa, pos)
            ) return 1;
+    }else{
+        int esperado[4] = {_IDENTIFICADOR_, _IF_, _WHILE_, _PRINT_};
+        imprimeErroSintatico(programa, pos, esperado);
     }
     return 0;
 }
 
 int comandoComposto(char programa[], int *pos){
     if(!comando(programa, pos)) return 0;
-    if(lookahead==402 || lookahead==101 || lookahead==104 || lookahead==109){
+    if(lookahead==_IDENTIFICADOR_ || lookahead==_IF_ || lookahead==_PRINT_ || lookahead==_WHILE_){
         if(!comandoComposto(programa, pos)) return 0;
     }
     return 1;
@@ -992,11 +1024,11 @@ int bloco(char programa[], int *pos){
 }
 
 int programa(char programa[], int *pos){
-	if(match(103, programa, pos) &&
-       match(402, programa, pos) &&
-       match(301, programa, pos) &&
+	if(match(_PROGRAM_, programa, pos) &&
+       match(_IDENTIFICADOR_, programa, pos) &&
+       match(_ABRE_CHAVE_, programa, pos) &&
        bloco(programa, pos) &&
-       match(302, programa, pos)
+       match(_FECHA_CHAVE_, programa, pos)
        ) return 1;
     return 0;
 }
@@ -1010,6 +1042,7 @@ int main(){
     char* entrada = leArquivo(arquivo, nome);
 	int pos = 0;
 	lookahead = analisadorLexico(entrada, &pos);
+    while(lookahead==_COMENTARIO_) lookahead = analisadorLexico(entrada, &pos);
     if(programa(entrada, &pos)){
         printf("Analises lexica e semantica efetuadas com sucesso!\n");
         printf("Nenhum erro encontrado!\n");
