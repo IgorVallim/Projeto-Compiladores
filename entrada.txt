@@ -39,8 +39,7 @@ program _correto {
 	
 	_f = true ;
 	
-	print ( _b ) ;
-	
+	print ( _b ) ;	
 	if ( _d ) {
  		
 		_a = 20 ;
@@ -61,7 +60,7 @@ program _correto {
 		
 		} else {
 			
-			_a = _a - 1 ;
+			_a = _a + 1 ;
 		
 		} 
 	

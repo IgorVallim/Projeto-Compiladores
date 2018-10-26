@@ -173,6 +173,63 @@ char* buscaToken(int id){
     }
 }
 
+//----------------------------------------------------------Analisador Lexico-----------------------------------------------------------
+
+//Funcao que faz a analise lexica de trecho do programa fonte.
+int analisadorLexico(char programa[], int *pos){
+	char lexema[100];
+	int i = 0;
+	while(programa[*pos]==' ' || (iscntrl(programa[*pos]) && programa[*pos]!='\0')) (*pos)++;
+	if(programa[(*pos)]=='/' && programa[(*pos)+1]=='*'){
+		while(!(programa[(*pos)-2]=='*' && programa[(*pos)-1]=='/') && programa[*pos]!='\0'){
+			lexema[i] = programa[*pos];
+			(*pos)++;
+			i++;
+		}	
+	}else{
+		while(programa[*pos]!=' ' && !iscntrl(programa[*pos])  && programa[*pos]!='\0' ){
+        	lexema[i] = programa[*pos];
+			(*pos)++;
+			i++;
+		}	
+	}
+	if(i!=0){
+		lexema[i] = ' ';
+		i++;	
+	} 
+	lexema[i] = '\0';
+	int token = scanner(lexema);
+	if(!token && i!=0) imprimeErroLexico(programa, pos, lexema);
+	if(i!=0)return token;
+	else return 1;
+	
+}
+
+//Funcao que imprime erros lexicos.
+void imprimeErroLexico(char programa[], int *pos, char lexema[]){
+    int i, linhaNum = 1, comecoLinha = 0;
+    for(i=0;i<(*pos);i++){
+        if(programa[i]=='\n'){
+        	linhaNum++;
+        	comecoLinha = i+1;
+		} 
+    }
+    char* linha = malloc((*pos)-comecoLinha);
+	int j = 0;
+	i = comecoLinha;
+    while(programa[i]!='\n' && programa[i]!='\0'){
+    	if(!iscntrl(programa[i])){
+    		linha[j] = programa[i];
+    		j++;	
+		}
+		i++;		
+	}
+	linha[j] = '\0';
+    printf("ERRO: lexema '%s' nao reconhecido!\n", lexema);
+    printf("Linha %d: '%s'\n", linhaNum, linha);
+    exit(0);
+    
+}
 
 //Funcao que representa o afd da etapa anterior do projeto, retornando um token correspondente a entrada.
 int scanner(char* entrada){  
@@ -638,7 +695,7 @@ q84:
 	if(*entrada=='\0') return _FECHA_PARENTESE_;
 	return 0;		
 	
-q85: //TODO: Arrumar automato
+q85: 
 	entrada++;
 	if(isalpha(*entrada)) goto q88;
 	return 0;
@@ -691,60 +748,17 @@ q95:
 	return 0;			
 }
 
-//Funcao que imprime erros lexicos.
-void imprimeErroLexico(char programa[], int *pos, char lexema[]){
-    int i, linhaNum = 1, comecoLinha = 0;
-    for(i=0;i<(*pos);i++){
-        if(programa[i]=='\n'){
-        	linhaNum++;
-        	comecoLinha = i+1;
-		} 
-    }
-    char* linha = malloc((*pos)-comecoLinha);
-	int j = 0;
-	i = comecoLinha;
-    while(programa[i]!='\n' && programa[i]!='\0'){
-    	if(!iscntrl(programa[i])){
-    		linha[j] = programa[i];
-    		j++;	
-		}
-		i++;		
-	}
-	linha[j] = '\0';
-    printf("ERRO: lexema '%s' nao reconhecido!\n", lexema);
-    printf("Linha %d: '%s'\n", linhaNum, linha);
-    exit(0);
-    
-}
+//---------------------------------------------------------Analisador Sintatico---------------------------------------------------------
 
-//Funcao que faz a analise lexica de trecho do programa fonte.
-int analisadorLexico(char programa[], int *pos){
-	char lexema[100];
-	int i = 0;
-	while(programa[*pos]==' ' || (iscntrl(programa[*pos]) && programa[*pos]!='\0')) (*pos)++;
-	if(programa[(*pos)]=='/' && programa[(*pos)+1]=='*'){
-		while(!(programa[(*pos)-2]=='*' && programa[(*pos)-1]=='/') && programa[*pos]!='\0'){
-			lexema[i] = programa[*pos];
-			(*pos)++;
-			i++;
-		}	
-	}else{
-		while(programa[*pos]!=' ' && !iscntrl(programa[*pos])  && programa[*pos]!='\0' ){
-        	lexema[i] = programa[*pos];
-			(*pos)++;
-			i++;
-		}	
-	}
-	if(i!=0){
-		lexema[i] = ' ';
-		i++;	
-	} 
-	lexema[i] = '\0';
-	int token = scanner(lexema);
-	if(!token && i!=0) imprimeErroLexico(programa, pos, lexema);
-	if(i!=0)return token;
-	else return 1;
-	
+//Funcao que confere se o token encontrado confere com o esperado.
+int  match(int token, char programa[], int *pos){
+    if (lookahead == token){
+		lookahead = analisadorLexico(programa, pos);
+		while(lookahead==_COMENTARIO_) lookahead = analisadorLexico(programa, pos);
+        if(lookahead) return 1;
+        
+    }else imprimeErroSintatico(programa, pos, &token);
+    return 0;
 }
 
 //Funcao que imprime erros sintaticos.
@@ -778,19 +792,6 @@ void imprimeErroSintatico(char programa[], int* pos, int esperado[]){
     printf("Linha %d: '%s'\n", linhaNum, linha);
     
 }
-
-//Funcao que confere se o token encontrado confere com o esperado.
-int  match(int token, char programa[], int *pos){
-    if (lookahead == token){
-		lookahead = analisadorLexico(programa, pos);
-		while(lookahead==_COMENTARIO_) lookahead = analisadorLexico(programa, pos);
-        if(lookahead) return 1;
-        
-    }else imprimeErroSintatico(programa, pos, &token);
-    return 0;
-}
-
-//---------------------------------------------------------Analisador Sintatico---------------------------------------------------------
 
 //Regra #1:  <programa> ::=  program <identificador>  { <bloco> }
 int programa(char programa[], int *pos){
@@ -966,7 +967,7 @@ int atribuicao(char programa[], int *pos){
     return 0;
 }
 
-//Regra #14:  <chamada de procedimento> ::= ( [ <lista de parâmetros> ] );
+//Regra #14:  <chamada de procedimento> ::= ( [ <lista de parametros> ] );
 int chamadaDeProcedimento(char programa[], int *pos){
     if(!match(_ABRE_PARENTESE_, programa, pos)) return 0;
     if(lookahead==_IDENTIFICADOR_ || lookahead==_TRUE_ || lookahead==_FALSE_ || lookahead==_VALOR_){
@@ -978,97 +979,7 @@ int chamadaDeProcedimento(char programa[], int *pos){
     return 1;
 }
 
-int booleano(char programa[], int *pos){
-    if(lookahead==_TRUE_){
-        if(match(_TRUE_, programa, pos)) return 1;
-    }else if(lookahead==_FALSE_){
-        if(match(_FALSE_, programa, pos)) return 1;
-    }else{
-        int esperado[2] = {_TRUE_, _FALSE_};
-        imprimeErroSintatico(programa, pos, esperado);
-    }
-    return 0;
-}
-
-int fator(char programa[], int *pos){
-    if(lookahead==_VALOR_){
-        if(match(_VALOR_, programa, pos)) return 1;
-    }else if(lookahead==_IDENTIFICADOR_){
-        if(match(_IDENTIFICADOR_, programa, pos)) return 1;
-    }else if(lookahead==_TRUE_ || lookahead==_FALSE_){
-        if(booleano(programa, pos)) return 1;
-    }else if(lookahead==_ABRE_PARENTESE_){
-        if(match(_ABRE_PARENTESE_, programa, pos) &&
-           expressaoSimples(programa, pos) &&
-           match(_FECHA_PARENTESE_, programa, pos)
-           ) return 1;
-    }else{
-        int esperado[5] = {_VALOR_, _IDENTIFICADOR_, _TRUE_, _FALSE_, _ABRE_PARENTESE_};
-        imprimeErroSintatico(programa, pos, esperado);
-    }
-   
-    return 0;
-}
-
-int termo(char programa[], int *pos){
-    if(!fator(programa, pos)) return 0;
-    if(lookahead==_DIVIDIDO_){
-        if(!match(_DIVIDIDO_, programa, pos) ||
-           !termo(programa, pos)
-           ) return 0;
-        return 1;
-    }else if(lookahead==_VEZES_){
-        if(!match(_VEZES_, programa, pos) ||
-           !termo(programa, pos)
-           ) return 0;
-        return 1;
-    }
-    return 1;
-}
-
-int relacao(char programa[], int *pos){
-    if(lookahead==_MAIOR_IGUAL_){
-        if(match(_MAIOR_IGUAL_, programa, pos)) return 1;
-    }else if(lookahead==_MAIOR_){
-        if(match(_MAIOR_, programa, pos)) return 1;
-    }else if(lookahead==_MENOR_){
-        if(match(_MENOR_, programa, pos)) return 1;
-    }else if(lookahead==_MENOR_IGUAL_){
-        if(match(_MENOR_IGUAL_, programa, pos)) return 1;
-    }else if(lookahead==_IGUALDADE_){
-        if(match(_IGUALDADE_, programa, pos)) return 1;
-    }else if(lookahead==_DIFERENTE_){
-        if(match(_DIFERENTE_, programa, pos)) return 1;
-    }else{
-        int esperado[6] = {_MAIOR_IGUAL_, _MAIOR_, _MENOR_, _MENOR_IGUAL_, _IGUALDADE_, _DIFERENTE_};
-        imprimeErroSintatico(programa, pos, esperado);
-    }
-    return 0;
-}
-
-int expressaoSimples(char programa[], int *pos){
-    if(lookahead==_MAIS_){
-        if(!match(_MAIS_, programa, pos)) return 0;
-    }else if(lookahead==_MENOS_){
-        if(!match(_MENOS_, programa, pos)) return 0;
-    }
-    if(!termo(programa, pos)) return 0;
-    if(lookahead==_MAIS_ || lookahead==_MENOS_ || lookahead==_IDENTIFICADOR_ || lookahead==_VALOR_ || lookahead==_TRUE_ || lookahead==_FALSE_ || lookahead==_ABRE_PARENTESE_){
-        if(!expressaoSimples(programa, pos)) return 0;
-    }
-    return 1;
-}
-
-int expressao(char programa[], int *pos){
-    if(!expressaoSimples(programa, pos)) return 0;
-    if(lookahead==_MAIOR_IGUAL_ || lookahead==_MAIOR_ || lookahead==_MENOR_ || lookahead==_MENOR_IGUAL_ || lookahead==_IGUALDADE_ || lookahead==_DIFERENTE_){
-        if(!relacao(programa, pos) ||
-           !expressaoSimples(programa, pos)
-           ) return 0;
-    }
-    return 1;
-}
-
+//Regra #15:  <lista de parametros> ::= ( <identificador> | <booleano> | <valor> ) [, <lista de parametros> ]
 int listaDeParametros(char programa[], int *pos){
     if(lookahead==_IDENTIFICADOR_){
         if(!match(_IDENTIFICADOR_, programa, pos)) return 0;
@@ -1089,18 +1000,7 @@ int listaDeParametros(char programa[], int *pos){
     return 1;
 }
 
-int comandoRepetitivo(char programa[], int *pos){
-    if(match(_WHILE_, programa, pos) &&
-       match(_ABRE_PARENTESE_, programa, pos) &&
-       expressao(programa, pos) &&
-       match(_FECHA_PARENTESE_, programa, pos) &&
-       match(_ABRE_CHAVE_, programa, pos) &&
-       comandoComposto(programa, pos) &&
-       match(_FECHA_CHAVE_, programa, pos)
-       ) return 1;
-    return 0;
-}
-
+//Regra #16:  <comando condicional> ::= if ( <expressão> ) { <comando composto> } [ else { <comando composto> } ]
 int comandoCondicional(char programa[], int *pos){
     if(!match(_IF_, programa, pos) ||
        !match(_ABRE_PARENTESE_, programa, pos) ||
@@ -1120,6 +1020,116 @@ int comandoCondicional(char programa[], int *pos){
     return 1;
 }
 
+//Regra #17:  <comando repetitivo> ::= while ( <expressão> ) { <comando composto> }
+int comandoRepetitivo(char programa[], int *pos){
+    if(match(_WHILE_, programa, pos) &&
+       match(_ABRE_PARENTESE_, programa, pos) &&
+       expressao(programa, pos) &&
+       match(_FECHA_PARENTESE_, programa, pos) &&
+       match(_ABRE_CHAVE_, programa, pos) &&
+       comandoComposto(programa, pos) &&
+       match(_FECHA_CHAVE_, programa, pos)
+       ) return 1;
+    return 0;
+}
+
+//Regra #18: <expressão> ::= <expressão simples> [ <relação> <expressão simples> ]
+int expressao(char programa[], int *pos){
+    if(!expressaoSimples(programa, pos)) return 0;
+    if(lookahead==_MAIOR_IGUAL_ || lookahead==_MAIOR_ || lookahead==_MENOR_ || lookahead==_MENOR_IGUAL_ || lookahead==_IGUALDADE_ || lookahead==_DIFERENTE_){
+        if(!relacao(programa, pos) ||
+           !expressaoSimples(programa, pos)
+           ) return 0;
+    }
+    return 1;
+}
+
+//Regra #19: <relação> ::= == | != | < | <= | >= | >
+int relacao(char programa[], int *pos){
+    if(lookahead==_MAIOR_IGUAL_){
+        if(match(_MAIOR_IGUAL_, programa, pos)) return 1;
+    }else if(lookahead==_MAIOR_){
+        if(match(_MAIOR_, programa, pos)) return 1;
+    }else if(lookahead==_MENOR_){
+        if(match(_MENOR_, programa, pos)) return 1;
+    }else if(lookahead==_MENOR_IGUAL_){
+        if(match(_MENOR_IGUAL_, programa, pos)) return 1;
+    }else if(lookahead==_IGUALDADE_){
+        if(match(_IGUALDADE_, programa, pos)) return 1;
+    }else if(lookahead==_DIFERENTE_){
+        if(match(_DIFERENTE_, programa, pos)) return 1;
+    }else{
+        int esperado[6] = {_MAIOR_IGUAL_, _MAIOR_, _MENOR_, _MENOR_IGUAL_, _IGUALDADE_, _DIFERENTE_};
+        imprimeErroSintatico(programa, pos, esperado);
+    }
+    return 0;
+}
+
+//Regra #20: <expressão simples> ::= [ + | - ] <termo> [ <expressão simples> ]
+int expressaoSimples(char programa[], int *pos){
+    if(lookahead==_MAIS_){
+        if(!match(_MAIS_, programa, pos)) return 0;
+    }else if(lookahead==_MENOS_){
+        if(!match(_MENOS_, programa, pos)) return 0;
+    }
+    if(!termo(programa, pos)) return 0;
+    if(lookahead==_MAIS_ || lookahead==_MENOS_ || lookahead==_IDENTIFICADOR_ || lookahead==_VALOR_ || lookahead==_TRUE_ || lookahead==_FALSE_ || lookahead==_ABRE_PARENTESE_){
+        if(!expressaoSimples(programa, pos)) return 0;
+    }
+    return 1;
+}
+
+
+//Regra #21: <termo> ::= <fator> [ (  * | / ) <termo> ]
+int termo(char programa[], int *pos){
+    if(!fator(programa, pos)) return 0;
+    if(lookahead==_DIVIDIDO_){
+        if(!match(_DIVIDIDO_, programa, pos) ||
+           !termo(programa, pos)
+           ) return 0;
+        return 1;
+    }else if(lookahead==_VEZES_){
+        if(!match(_VEZES_, programa, pos) ||
+           !termo(programa, pos)
+           ) return 0;
+        return 1;
+    }
+    return 1;
+}
+
+//Regra #22:  <fator> ::= <valor> | <identificador> | <booleano> | ( <expressão simples> )
+int fator(char programa[], int *pos){
+    if(lookahead==_VALOR_){
+        if(match(_VALOR_, programa, pos)) return 1;
+    }else if(lookahead==_IDENTIFICADOR_){
+        if(match(_IDENTIFICADOR_, programa, pos)) return 1;
+    }else if(lookahead==_TRUE_ || lookahead==_FALSE_){
+        if(booleano(programa, pos)) return 1;
+    }else if(lookahead==_ABRE_PARENTESE_){
+        if(match(_ABRE_PARENTESE_, programa, pos) &&
+           expressaoSimples(programa, pos) &&
+           match(_FECHA_PARENTESE_, programa, pos)
+           ) return 1;
+    }else{
+        int esperado[5] = {_VALOR_, _IDENTIFICADOR_, _TRUE_, _FALSE_, _ABRE_PARENTESE_};
+        imprimeErroSintatico(programa, pos, esperado);
+    }
+   
+    return 0;
+}
+
+//Regra #23:  <booleano> ::= true | false
+int booleano(char programa[], int *pos){
+    if(lookahead==_TRUE_){
+        if(match(_TRUE_, programa, pos)) return 1;
+    }else if(lookahead==_FALSE_){
+        if(match(_FALSE_, programa, pos)) return 1;
+    }else{
+        int esperado[2] = {_TRUE_, _FALSE_};
+        imprimeErroSintatico(programa, pos, esperado);
+    }
+    return 0;
+}
 
 //--------------------------------------------------------------------------------------------------------------------------------------
 
