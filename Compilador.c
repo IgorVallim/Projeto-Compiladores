@@ -179,26 +179,32 @@ char* buscaToken(int id){
 int analisadorLexico(char programa[], int *pos){
 	char lexema[100];
 	int i = 0;
+    //Pula todos os espcos em branco e caracteres de controle antes de comecar a ler o lexema.
 	while(programa[*pos]==' ' || (iscntrl(programa[*pos]) && programa[*pos]!='\0')) (*pos)++;
+    //Verifica se o lexema e um comentario (pode conter espacos em branco em seu interior).
 	if(programa[(*pos)]=='/' && programa[(*pos)+1]=='*'){
-		while(!(programa[(*pos)-2]=='*' && programa[(*pos)-1]=='/') && programa[*pos]!='\0'){
+		//Se for um comentario, percorre o programa ate encontrar a marcacao de final de comentario, ou final do programa.
+        while(!(programa[(*pos)-2]=='*' && programa[(*pos)-1]=='/') && programa[*pos]!='\0'){
 			lexema[i] = programa[*pos];
 			(*pos)++;
 			i++;
 		}	
 	}else{
+        //Senao, percorre ate encontrar um espaco em branco ou quebra de linha.
 		while(programa[*pos]!=' ' && !iscntrl(programa[*pos])  && programa[*pos]!='\0' ){
         	lexema[i] = programa[*pos];
 			(*pos)++;
 			i++;
 		}	
 	}
+    //Se o lexema nao estiver vazio, adiciona um espaco em branco no final do mesmo.
 	if(i!=0){
 		lexema[i] = ' ';
 		i++;	
 	} 
 	lexema[i] = '\0';
 	int token = scanner(lexema);
+    //Se o scanner retornar 0, e o lexema nao for vazio, imprime erro lexico.
 	if(!token && i!=0) imprimeErroLexico(programa, pos, lexema);
 	if(i!=0)return token;
 	else return 1;
@@ -208,6 +214,7 @@ int analisadorLexico(char programa[], int *pos){
 //Funcao que imprime erros lexicos.
 void imprimeErroLexico(char programa[], int *pos, char lexema[]){
     int i, linhaNum = 1, comecoLinha = 0;
+    //Percorre o vetor de entrada, do comeco ate a posicao atual, contando o numero de linhas e armazenando a posicao do ultimo inicio de linha.
     for(i=0;i<(*pos);i++){
         if(programa[i]=='\n'){
         	linhaNum++;
@@ -217,6 +224,7 @@ void imprimeErroLexico(char programa[], int *pos, char lexema[]){
     char* linha = malloc((*pos)-comecoLinha);
 	int j = 0;
 	i = comecoLinha;
+    //Preenche a String linha com os caracteres da linha em que ocorreu o erro, para ser imprimida posteriormente.
     while(programa[i]!='\n' && programa[i]!='\0'){
     	if(!iscntrl(programa[i])){
     		linha[j] = programa[i];
@@ -750,11 +758,12 @@ q95:
 
 //---------------------------------------------------------Analisador Sintatico---------------------------------------------------------
 
-//Funcao que confere se o token encontrado confere com o esperado.
+//Funcao que confere se o token encontrado e o token esperado sao iguais.
 int  match(int token, char programa[], int *pos){
     if (lookahead == token){
 		lookahead = analisadorLexico(programa, pos);
-		while(lookahead==_COMENTARIO_) lookahead = analisadorLexico(programa, pos);
+		//Ignora todos os tokens de comentario, antes de comecar a leitura.
+        while(lookahead==_COMENTARIO_) lookahead = analisadorLexico(programa, pos);
         if(lookahead) return 1;
         
     }else imprimeErroSintatico(programa, pos, &token);
@@ -764,6 +773,7 @@ int  match(int token, char programa[], int *pos){
 //Funcao que imprime erros sintaticos.
 void imprimeErroSintatico(char programa[], int* pos, int esperado[]){
     int i, comecoLinha = 0, linhaNum = 1;
+    //Percorre o vetor de entrada, do comeco ate a posicao atual, contando o numero de linhas e armazenando a posicao do ultimo inicio de linha.
     for(i=0;i<(*pos);i++){
         if(programa[i]=='\n'){
         	linhaNum++;
@@ -773,6 +783,7 @@ void imprimeErroSintatico(char programa[], int* pos, int esperado[]){
 	char* linha = malloc((*pos)-comecoLinha);
 	int j = 0;
 	i = comecoLinha;
+    //Preenche a String linha com os caracteres da linha em que ocorreu o erro, para ser imprimida posteriormente.
     while(programa[i]!='\n' && programa[i]!='\0'){
     	if(!iscntrl(programa[i])){
     		linha[j] = programa[i];
@@ -784,6 +795,7 @@ void imprimeErroSintatico(char programa[], int* pos, int esperado[]){
 	linha[j] = '\0';
     printf("ERRO: esperava token %s", buscaToken(esperado[0]));
     i = 1;
+    //Existem situacoes onde mais de um token e esperado, imprime todos esses tokens.
     while(esperado[i]>=101 && esperado[i]<=403){
         printf(" ou %s",buscaToken(esperado[i]));
         i++;
@@ -838,6 +850,7 @@ int declaracaoDeVariaveis(char programa[], int *pos){
            ) return 1;
         return 0;
     }else{
+        //Envia uma lista contendo todos os tokens esperados para serem imprimidos.
         int esperado[2] = {_INT_, _BOOL_};
         imprimeErroSintatico(programa, pos, esperado);
     }
@@ -1033,7 +1046,7 @@ int comandoRepetitivo(char programa[], int *pos){
     return 0;
 }
 
-//Regra #18: <expressão> ::= <expressão simples> [ <relação> <expressão simples> ]
+//Regra #18: <expressao> ::= <expressao simples> [ <relacao> <expressao simples> ]
 int expressao(char programa[], int *pos){
     if(!expressaoSimples(programa, pos)) return 0;
     if(lookahead==_MAIOR_IGUAL_ || lookahead==_MAIOR_ || lookahead==_MENOR_ || lookahead==_MENOR_IGUAL_ || lookahead==_IGUALDADE_ || lookahead==_DIFERENTE_){
@@ -1044,7 +1057,7 @@ int expressao(char programa[], int *pos){
     return 1;
 }
 
-//Regra #19: <relação> ::= == | != | < | <= | >= | >
+//Regra #19: <relacao> ::= == | != | < | <= | >= | >
 int relacao(char programa[], int *pos){
     if(lookahead==_MAIOR_IGUAL_){
         if(match(_MAIOR_IGUAL_, programa, pos)) return 1;
@@ -1065,7 +1078,7 @@ int relacao(char programa[], int *pos){
     return 0;
 }
 
-//Regra #20: <expressão simples> ::= [ + | - ] <termo> [ <expressão simples> ]
+//Regra #20: <expressao simples> ::= [ + | - ] <termo> [ <expressao simples> ]
 int expressaoSimples(char programa[], int *pos){
     if(lookahead==_MAIS_){
         if(!match(_MAIS_, programa, pos)) return 0;
@@ -1097,7 +1110,7 @@ int termo(char programa[], int *pos){
     return 1;
 }
 
-//Regra #22:  <fator> ::= <valor> | <identificador> | <booleano> | ( <expressão simples> )
+//Regra #22:  <fator> ::= <valor> | <identificador> | <booleano> | ( <expressao simples> )
 int fator(char programa[], int *pos){
     if(lookahead==_VALOR_){
         if(match(_VALOR_, programa, pos)) return 1;
@@ -1139,7 +1152,9 @@ int main(){
 	char nome[] = "entrada.txt"; 
     char* entrada = leArquivo(arquivo, nome);
 	int pos = 0;
+    //Instancia o lookahead para o primeiro token do programa.
 	lookahead = analisadorLexico(entrada, &pos);
+    //Ignora todos os tokens de comentario, antes de comecar a leitura.
     while(lookahead==_COMENTARIO_) lookahead = analisadorLexico(entrada, &pos);
     if(programa(entrada, &pos)){
         printf("Analises lexica e semantica efetuadas com sucesso!\n");

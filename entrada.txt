@@ -21,7 +21,7 @@ program _correto {
 	
 	if ( 8 ) {
 		
-		_a = 8 ; 
+		_a = 1 ; 
 	
 	}
 	
