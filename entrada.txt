@@ -8,12 +8,14 @@ program _correto {
 	
 	void _proc ( int _arg ) {
 		 
-		int _a ;		
-		_a = 1 ;
-		
-		if ( _a > 1 ) {
+		bool _a ;
+		int _b ;		
+		_a = true ;
+	
+		print ( _a ) ;	
+		if ( ( _a != ( true >= false ) ) ) {
 			
-			_a = 12 ; 
+			_b = 12 ; 
 		
 		}
 	
@@ -25,12 +27,11 @@ program _correto {
 	
 	}
 	
-	_a = 2 ; 
+	_a = 2  ; 
 	
 	_b = 10 ;
- 	
-	_c = 11 ; 
-	
+ 
+	_c = 11 ; 	
 	_a = _b + _c ;
 	
 	_d = true ; 
@@ -38,10 +39,10 @@ program _correto {
 	_e = false ;
 	
 	_f = true ;
-	
-	print ( _b ) ;	
+		
 	if ( _d ) {
- 		
+ 	
+		print ( _b ) ;	
 		_a = 20 ;
 		
 		_b = 10 * _c ;
@@ -50,11 +51,11 @@ program _correto {
 
 	}
 	
-	while (	_a < 1 ) { 
+	while ( _a < 17 ) { 
 		
 		if ( _b > 10 ) {
 			
-			_b = 2 ;
+			_b = 6 ;
 			
 			_a = _a - 1 ;
 		

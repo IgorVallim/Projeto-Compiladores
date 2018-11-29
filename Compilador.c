@@ -1,8 +1,8 @@
 /*
- Beatriz Godoy 31612520
- Fernando Grangeiro 31602843
- Igor Vallim Sordi 31644961
- Lucas Barros 31613144
+ Beatriz Godoy - 31612520
+ Fernando Grangeiro - 31602843
+ Igor Vallim Sordi - 31644961
+ Lucas Barros - 31613144
  */
 
 #include <stdio.h>
@@ -45,6 +45,22 @@
 #define _IDENTIFICADOR_ 402
 #define _VALOR_ 403
 
+//Lista encadeada, em que cada celula representa uma linha da tabela de simbolos.
+struct Item{
+	char *id; 
+	int tipo; 
+	struct Item *prox;
+}; 
+typedef struct Item item;
+
+//Estrutura de dados representando um escopo.
+struct Escopo{
+	item *lista; //Lista de simbolos, de tamanho variavel.
+	struct Escopo *anterior; //Referencia ao escopo pai.
+};
+typedef struct Escopo escopo;
+
+escopo *escopoAtual; //Mantem o escopo atual em que o programa se encontra.
 int lookahead;
 
 //Prototipos das funcoes do programa
@@ -79,8 +95,36 @@ int analisadorLexico();
 void imprimeErroLexico();
 char* leArquivo();
 char* buscaToken();
+void iniciaLista();
+int vazia();
+int insereSimbolo();
+int criaEscopo();
+int removeEscopo();
+char* retornaUltimoId();
+void imprimeErroDeclaracao();
+void imprimeErroCompatibilidade();
+int imprimeTabela();
+int retornaTipo();
 
-//Funcao que le o arquivo contendo o programa fonte, e retorna uma String com seu conteudo.
+//Retorna o lexema equivalente ao ultimo identificador do programa, dada uma posicao de referencia.
+char* retornaUltimoId(char programa[], int *pos){
+	char *lexema = malloc(1000);
+	int i = 0;
+	int aux = *pos;
+	//Retrocede uma posicao na String, ate encontrar o simbolo "_".
+	while(programa[aux]!='_') aux--;
+	//Avanca posicoes na String, gravando em uma variavel o identificador.
+	for(; aux<=*pos; aux++){
+		if(programa[aux+1]==' ' || iscntrl(programa[aux+1])) break;
+		lexema[i] = programa[aux];
+		i++;
+	}
+	lexema[i] = programa[aux];
+	lexema[i+1] = '\0';
+	return lexema;
+}
+
+//Le o arquivo contendo o programa fonte, e retorna uma String com seu conteudo.
 char* leArquivo(FILE* arquivo, char nome[]){
 	arquivo = fopen(nome, "r");
 	if(!arquivo){
@@ -88,10 +132,12 @@ char* leArquivo(FILE* arquivo, char nome[]){
 		exit(0);
 	}
 	
+	//Aloca uma String com o tamanho do arquivo.
 	fseek(arquivo, 0, SEEK_END);
 	int tamanho = ftell(arquivo);
 	char* programa = malloc(tamanho*sizeof(char));
 	fseek(arquivo, 0, SEEK_SET);
+	
 	char letra;
 	int i = 0;
 	
@@ -104,7 +150,7 @@ char* leArquivo(FILE* arquivo, char nome[]){
 	return programa;
 }
 
-//Funcao que retorna um token (String), com base em seu identificador.
+//Retorna um token (String), com base em seu identificador.
 char* buscaToken(int id){
 	
     switch (id) {
@@ -173,7 +219,179 @@ char* buscaToken(int id){
     }
 }
 
-//----------------------------------------------------------Analisador Lexico-----------------------------------------------------------
+//------------------------------------ANALISADOR SEMANTICO-------------------------------------
+
+//Inicializa uma lista de simbolos.
+void iniciaLista(item *LISTA){
+	LISTA->prox = NULL;
+}
+
+//Verifica se uma lista de simbolos esta vazia.
+int vazia(item *LISTA){
+	if(LISTA->prox == NULL)
+		return 1;
+	else
+		return 0;
+}
+
+//Insere um novo simbolo na lista.
+int insereSimbolo(char id[], int tipo){	
+	item *tmp = escopoAtual->lista->prox;
+		//Verifica se o simbolo ja existe no escopo atual.
+		while(tmp != NULL){
+			if(!strcmp(tmp->id, id)){
+				return 0;
+			} 
+			tmp = tmp->prox;
+		}
+				
+	//Cria uma nova celula na lista, com o conteudo dos parametros.					
+	item*novo=(item*) malloc(sizeof(item));
+	novo->id = id;
+	novo->tipo = tipo;
+	novo->prox = escopoAtual->lista->prox;
+	
+	//Insere a nova celula no começo da lista.
+	escopoAtual->lista->prox = novo;
+	
+	return 1;
+}
+
+//Cria um novo escopo.
+int criaEscopo(){
+	escopo *ESCOPO = (escopo*) malloc(sizeof(escopo));
+	//Cria uma lista de simbolos vazia para o novo escopo.
+	item *LISTA = (item*) malloc(sizeof(item));
+	iniciaLista(LISTA);
+	ESCOPO->lista = LISTA;
+	//Define o escopo atual como pai do novo escopo.
+	ESCOPO->anterior = escopoAtual;
+	//Define o novo escopo como escopo atual.
+	escopoAtual = ESCOPO;
+	return 1;
+}
+
+//Remove o ultimo escopo da lista (escopoAtual).
+int removeEscopo(){
+	escopoAtual = escopoAtual->anterior;
+	return 1;
+}
+
+//Percorre todos os escopos da tabela de simbolos, imprimindo seus simbolos.
+int imprimeTabela(){
+	
+	escopo *ESCOPO = escopoAtual;
+	printf("----------Tabela de simbolos----------\n\n");
+	if(ESCOPO!=NULL) printf("Identificador\tTipo\n\n");
+	while(ESCOPO!=NULL){	
+		if(!vazia(ESCOPO->lista)){
+			item *tmp;
+			tmp = ESCOPO->lista->prox;
+			while( tmp != NULL){
+				printf("%s\t\t", tmp->id);
+				if(tmp->tipo==_INT_) printf("Int\n");
+				else if(tmp->tipo==_BOOL_) printf("Bool\n");
+				else printf("Void\n");
+				tmp = tmp->prox;
+			}
+		
+			printf("\n");
+		}
+		ESCOPO = ESCOPO->anterior; 	
+	}
+	return 1;
+}
+
+//Retorna o tipo de uma variavel, dado o seu identificador.
+int retornaTipo(char id[]){
+	escopo *ESCOPO = escopoAtual;
+	
+	while(ESCOPO!=NULL){	
+		if(!vazia(ESCOPO->lista)){
+			item *tmp;
+			tmp = ESCOPO->lista->prox;
+			while( tmp != NULL){
+				if(!strcmp(tmp->id, id)) return tmp->tipo;
+				tmp = tmp->prox;
+			}
+		}
+		ESCOPO = ESCOPO->anterior; 	
+	}
+	return 0;
+}
+
+//Imprime os erros semanticos ligados a declaracao de novas variaveis.
+void imprimeErroDeclaracao(char programa[], int *pos, char id[], int cod){
+	int i, linhaNum = 1, comecoLinha = 0;
+    //Percorre o vetor de entrada, do comeco ate a posicao atual, contando o numero de linhas.
+    for(i=0;i<(*pos);i++){
+        if(programa[i]=='\n'){
+        	linhaNum++;
+        	comecoLinha = i+1;
+		} 
+    }
+    char* linha = malloc((*pos)-comecoLinha);
+	int j = 0;
+	i = comecoLinha;
+    //Preenche a String linha com os caracteres da linha em que ocorreu o erro.
+    while(programa[i]!='\n' && programa[i]!='\0'){
+    	if(!iscntrl(programa[i])){
+    		linha[j] = programa[i];
+    		j++;	
+		}
+		i++;		
+	}
+	linha[j] = '\0';
+	if(cod==1) printf("ERRO: identificador '%s' ja foi declarado nesse escopo!\n", id);
+	else if(cod==2) printf("ERRO: identificador '%s' nao foi declarado!\n", id);
+    printf("Linha %d: '%s'\n", linhaNum, linha);
+}
+
+//Imprime os erros semanticos ligados a imcompatibilidade de tipos.
+void imprimeErroCompatibilidade(char programa[], int *pos, char id[], int cod){
+	int i, linhaNum = 1, comecoLinha = 0;
+    //Percorre o vetor de entrada, do comeco ate a posicao atual, contando o numero de linhas.
+    for(i=0;i<(*pos);i++){
+        if(programa[i]=='\n'){
+        	linhaNum++;
+        	comecoLinha = i+1;
+		} 
+    }
+    char* linha = malloc((*pos)-comecoLinha);
+    char* exp = malloc((*pos)-comecoLinha);
+	int j = 0;
+	i = comecoLinha;
+	int k = 0, flag = 0, cont = 0;
+    //Preenche a String linha com os caracteres da linha em que ocorreu o erro, e a String exp com a expressao de tipo conflitante.
+    while(programa[i]!='\n' && programa[i]!='\0'){
+		if((programa[i]==';') || (programa[i]==')' && cod==1 && cont==0)){
+    		flag = 0;
+		}
+		if(!iscntrl(programa[i])){
+    		printf("Flag: %d\n", flag);
+			if(flag){
+    			if(programa[i]=='(') cont++;
+    			if(programa[i]==')') cont--;
+    			exp[k] = programa[i];
+    			k++;
+			}
+			linha[j] = programa[i];
+    		j++;	
+		}
+		if((programa[i]=='=') || (programa[i]=='(' && cod==1)){
+            flag = 1;
+		}
+		i++;		
+	}
+	exp[k] = '\0';
+	linha[j] = '\0';
+
+	if(cod==1) printf("ERRO: A expressao '%s' contem inteiros e booleanos!\n", exp);
+	else if(cod==2) printf("ERRO: Tipos incompativeis entre o identificador '%s' e a expressao '%s'!\n", id, exp);
+    printf("Linha %d: '%s'\n", linhaNum, linha);
+}
+
+//-------------------------------------ANALISADOR LEXICO---------------------------------------
 
 //Funcao que faz a analise lexica de trecho do programa fonte.
 int analisadorLexico(char programa[], int *pos){
@@ -214,7 +432,7 @@ int analisadorLexico(char programa[], int *pos){
 //Funcao que imprime erros lexicos.
 void imprimeErroLexico(char programa[], int *pos, char lexema[]){
     int i, linhaNum = 1, comecoLinha = 0;
-    //Percorre o vetor de entrada, do comeco ate a posicao atual, contando o numero de linhas e armazenando a posicao do ultimo inicio de linha.
+    //Percorre o vetor de entrada, do comeco ate a posicao atual, contando o numero de linhas.
     for(i=0;i<(*pos);i++){
         if(programa[i]=='\n'){
         	linhaNum++;
@@ -224,7 +442,7 @@ void imprimeErroLexico(char programa[], int *pos, char lexema[]){
     char* linha = malloc((*pos)-comecoLinha);
 	int j = 0;
 	i = comecoLinha;
-    //Preenche a String linha com os caracteres da linha em que ocorreu o erro, para ser imprimida posteriormente.
+    //Preenche a String linha com os caracteres da linha em que ocorreu o erro.
     while(programa[i]!='\n' && programa[i]!='\0'){
     	if(!iscntrl(programa[i])){
     		linha[j] = programa[i];
@@ -235,11 +453,9 @@ void imprimeErroLexico(char programa[], int *pos, char lexema[]){
 	linha[j] = '\0';
     printf("ERRO: lexema '%s' nao reconhecido!\n", lexema);
     printf("Linha %d: '%s'\n", linhaNum, linha);
-    exit(0);
-    
 }
 
-//Funcao que representa o afd da etapa anterior do projeto, retornando um token correspondente a entrada.
+//Funcao que representa o afd do projeto, retornando um token correspondente a entrada.
 int scanner(char* entrada){  
 
 //Representacao do estado inicial do automato.
@@ -756,7 +972,7 @@ q95:
 	return 0;			
 }
 
-//---------------------------------------------------------Analisador Sintatico---------------------------------------------------------
+//-----------------------------------ANALISADOR SINTATICO--------------------------------------
 
 //Funcao que confere se o token encontrado e o token esperado sao iguais.
 int  match(int token, char programa[], int *pos){
@@ -765,7 +981,6 @@ int  match(int token, char programa[], int *pos){
 		//Ignora todos os tokens de comentario, antes de comecar a leitura.
         while(lookahead==_COMENTARIO_) lookahead = analisadorLexico(programa, pos);
         if(lookahead) return 1;
-        
     }else imprimeErroSintatico(programa, pos, &token);
     return 0;
 }
@@ -800,19 +1015,22 @@ void imprimeErroSintatico(char programa[], int* pos, int esperado[]){
         printf(" ou %s",buscaToken(esperado[i]));
         i++;
     }
-    printf(", encontrou %s\n", buscaToken(lookahead), linha);
+    printf(", encontrou %s\n", buscaToken(lookahead));
     printf("Linha %d: '%s'\n", linhaNum, linha);
     
 }
 
-//Regra #1:  <programa> ::=  program <identificador>  { <bloco> }
+//Regra #1:  <programa> ::=  program <identificador>  { <bloco> }	---MODIFICADA NA ULTIMA ENTREGA--- 
 int programa(char programa[], int *pos){
-	if(match(_PROGRAM_, programa, pos) &&
+	if(criaEscopo() && //Cria um novo escopo.
+	   match(_PROGRAM_, programa, pos) &&
        match(_IDENTIFICADOR_, programa, pos) &&
        match(_ABRE_CHAVE_, programa, pos) &&
        bloco(programa, pos) &&
-       match(_FECHA_CHAVE_, programa, pos)
+       match(_FECHA_CHAVE_, programa, pos) &&
+       removeEscopo() //Remove o ultimo escopo da lista.
        ) return 1;
+       
     return 0;
 }
 
@@ -820,8 +1038,8 @@ int programa(char programa[], int *pos){
 int bloco(char programa[], int *pos){
     if(parteDeclaracaoDeVariaveis(programa, pos) &&
        parteDeclaracoesDeFuncoes(programa, pos) &&
-       comandoComposto(programa, pos)
-       ) return 1;
+       comandoComposto(programa, pos) 
+	   ) return 1;
     return 0;
 }
 
@@ -835,17 +1053,19 @@ int parteDeclaracaoDeVariaveis(char programa[], int *pos){
 
 //Regra #4:  <declaracao de variaveis> ::= ( int | bool ) <lista de identificadores>  ;
 int declaracaoDeVariaveis(char programa[], int *pos){
-    if(lookahead==_INT_){
-        if(
+	if(lookahead==_INT_){
+        int tipo = _INT_;
+		if(
            match(_INT_, programa, pos) &&
-           listaDeIdentificadores(programa, pos) &&
+           listaDeIdentificadores(programa, pos, tipo) &&
            match(_PONTO_E_VIRGULA_, programa, pos)
            ) return 1;
         return 0;
     }else if(lookahead==_BOOL_){
-        if(
+        int tipo = _BOOL_;
+		if(
            match(_BOOL_, programa, pos) &&
-           listaDeIdentificadores(programa, pos) &&
+           listaDeIdentificadores(programa, pos, tipo) &&
            match(_PONTO_E_VIRGULA_, programa, pos)
            ) return 1;
         return 0;
@@ -857,13 +1077,19 @@ int declaracaoDeVariaveis(char programa[], int *pos){
     return 0;
 }
 
-//Regra #5:  <lista de identificadores> ::= <identificador> [ , <lista de identificadores> ]
-int listaDeIdentificadores(char programa[], int *pos){
+//Regra #5:  <lista de identificadores> ::= <identificador> [ , <lista de identificadores> ]	---MODIFICADA NA ULTIMA ENTREGA---  
+int listaDeIdentificadores(char programa[], int *pos, int tipo){
     if(!match(_IDENTIFICADOR_, programa, pos)) return 0;
+    char *id = retornaUltimoId(programa, pos); 
+    //Insere o ultimo identificador do programa na tabela de simbolos.
+    if(!insereSimbolo(retornaUltimoId(programa, pos), tipo)){ 
+    	imprimeErroDeclaracao(programa, pos, id, 1);
+		return 0;	
+	} 
     if(lookahead==_VIRGULA_){
         if(
            !match(_VIRGULA_, programa, pos) ||
-           !listaDeIdentificadores(programa, pos)
+           !listaDeIdentificadores(programa, pos, tipo)
            ) return 0;
     }
     return 1;
@@ -878,17 +1104,25 @@ int parteDeclaracoesDeFuncoes(char programa[], int *pos){
     return 1;
 }
 
-//Regra #7:  <declaração de funcao> ::= void <identificador>  ( [ <parametros formais> ] ) { <bloco> }
+//Regra #7:  <declaração de funcao> ::= void <identificador>  ( [ <parametros formais> ] ) { <bloco> }	---MODIFICADA NA ULTIMA ENTREGA--- 
 int declaracaoDeFuncao(char programa[], int *pos){
 	if(!match(_VOID_, programa, pos) ||
        !match(_IDENTIFICADOR_, programa, pos) ||
        !match(_ABRE_PARENTESE_, programa, pos)
-       ) return 0;
+       ) return 0;   
+    char *id = retornaUltimoId(programa, pos);
+    //Insere o ultimo identificador do programa na tabela de simbolos.
+    if(!insereSimbolo(id, _VOID_)){
+    	imprimeErroDeclaracao(programa, pos, id, 1);
+		return 0;	
+	} 
+	if(!criaEscopo()) return 0; //Cria um novo escopo.
 	if(lookahead==_INT_ || lookahead==_BOOL_) if(!parametrosFormais(programa, pos)) return 0;
 	if(!match(_FECHA_PARENTESE_, programa, pos) ||
        !match(_ABRE_CHAVE_, programa, pos) ||
        !bloco(programa, pos) ||
-       !match(_FECHA_CHAVE_, programa, pos)
+       !match(_FECHA_CHAVE_, programa, pos) ||
+       !removeEscopo() //Remove o ultimo escopo da lista.
        ) return 0;
     return 1;
 }
@@ -905,18 +1139,30 @@ int parametrosFormais(char programa[], int *pos){
     return 1;
 }
 
-//Regra #9:  <parametro formal> ::= ( int | bool ) <identificador> 
+//Regra #9:  <parametro formal> ::= ( int | bool ) <identificador> ---MODIFICADA NA ULTIMA ENTREGA---  
 int parametroFormal(char programa[], int *pos){
     if(lookahead==_INT_){
-        if(match(_INT_, programa, pos) &&
-           match(_IDENTIFICADOR_, programa, pos)
-           ) return 1;
-        return 0;
+        if(!match(_INT_, programa, pos) ||
+           !match(_IDENTIFICADOR_, programa, pos) 
+           ) return 0;
+		char *id = retornaUltimoId(programa, pos);
+		//Insere o ultimo identificador do programa na tabela de simbolos.
+		if(!insereSimbolo(id, _INT_)){
+			imprimeErroDeclaracao(programa, pos, id, 1);
+			return 0;
+		}   
+        return 1;
     }else if(lookahead==_BOOL_){
-        if(match(_BOOL_, programa, pos) &&
-           match(_IDENTIFICADOR_, programa, pos)
-           ) return 1;
-        return 0;
+        if(!match(_BOOL_, programa, pos) ||
+           !match(_IDENTIFICADOR_, programa, pos) 
+           ) return 0;
+        char *id = retornaUltimoId(programa, pos);
+        //Insere o ultimo identificador do programa na tabela de simbolos.
+		if(!insereSimbolo(id, _BOOL_)){
+			imprimeErroDeclaracao(programa, pos, id, 1);
+			return 0;
+		}   
+        return 1;
     }else{
         int esperado[2] = {_INT_, _BOOL_};
         imprimeErroSintatico(programa, pos, esperado);
@@ -934,7 +1180,7 @@ int comandoComposto(char programa[], int *pos){
 }
 
 /*Regra #11:  <comando> ::= <identificador> <atribuicao ou chamada de procedimento> | <comando condicional> 
-                            | <comando repetitivo> | print ( <identificador> ) ; */
+                            | <comando repetitivo> | print ( <identificador> ) ;	---MODIFICADA NA ULTIMA ENTREGA---   */
 int comando(char programa[], int *pos){
     if(lookahead==_IDENTIFICADOR_){
         if(match(_IDENTIFICADOR_, programa, pos) &&
@@ -949,7 +1195,9 @@ int comando(char programa[], int *pos){
            match(_ABRE_PARENTESE_, programa, pos) &&
            match(_IDENTIFICADOR_, programa, pos) &&
            match(_FECHA_PARENTESE_, programa, pos) &&
-           match(_PONTO_E_VIRGULA_, programa, pos)
+           match(_PONTO_E_VIRGULA_, programa, pos) &&
+           //Imprime tabela de simbolos.
+		   imprimeTabela()
            ) return 1;
     }else{
         int esperado[4] = {_IDENTIFICADOR_, _IF_, _WHILE_, _PRINT_};
@@ -971,18 +1219,36 @@ int atribuicaoOuChamadaDeProcedimento(char programa[], int *pos){
     return 0;
 }
 
-//Regra #13:   <atribuicao> ::= = <expressao> ;
+//Regra #13:   <atribuicao> ::= = <expressao> ;	---MODIFICADA NA ULTIMA ENTREGA---  
 int atribuicao(char programa[], int *pos){
-    if(match(_ATRIBUICAO_, programa, pos) &&
-       expressao(programa, pos) &&
-       match(_PONTO_E_VIRGULA_, programa, pos)
-       ) return 1;
+    char *id = retornaUltimoId(programa, pos);
+    //Verifica se o identificador ja foi declarada previamente.
+    if(!retornaTipo(id)){
+    	imprimeErroDeclaracao(programa, pos, id, 2);
+    	return 0;
+	}
+	int tipo;
+	if(!match(_ATRIBUICAO_, programa, pos) ||
+       !expressao(programa, pos, &tipo) 
+       ) return 0;
+    //Verifica se o tipo da variavel e igual ao da expressao atribuida a ela.
+	if(tipo!=retornaTipo(id)){
+    	imprimeErroCompatibilidade(programa, pos, id, 2);
+		return 0;	
+	} 
+	if(match(_PONTO_E_VIRGULA_, programa, pos)) return 1;
     return 0;
 }
 
-//Regra #14:  <chamada de procedimento> ::= ( [ <lista de parametros> ] );
+//Regra #14:  <chamada de procedimento> ::= ( [ <lista de parametros> ] );	---MODIFICADA NA ULTIMA ENTREGA--- 
 int chamadaDeProcedimento(char programa[], int *pos){
-    if(!match(_ABRE_PARENTESE_, programa, pos)) return 0;
+    char *id = retornaUltimoId(programa, pos);
+    //Verifica se o identificador ja foi previamente declarado.
+	if(!retornaTipo(id)){
+    	imprimeErroDeclaracao(programa, pos, id, 2);
+    	return 0;
+	}
+	if(!match(_ABRE_PARENTESE_, programa, pos)) return 0;
     if(lookahead==_IDENTIFICADOR_ || lookahead==_TRUE_ || lookahead==_FALSE_ || lookahead==_VALOR_){
         if(!listaDeParametros(programa, pos)) return 0;
     }
@@ -992,10 +1258,16 @@ int chamadaDeProcedimento(char programa[], int *pos){
     return 1;
 }
 
-//Regra #15:  <lista de parametros> ::= ( <identificador> | <booleano> | <valor> ) [, <lista de parametros> ]
+//Regra #15:  <lista de parametros> ::= ( <identificador> | <booleano> | <valor> ) [, <lista de parametros> ] ---MODIFICADA NA ULTIMA ENTREGA--- 
 int listaDeParametros(char programa[], int *pos){
     if(lookahead==_IDENTIFICADOR_){
-        if(!match(_IDENTIFICADOR_, programa, pos)) return 0;
+		if(!match(_IDENTIFICADOR_, programa, pos)) return 0;
+		char *id = retornaUltimoId(programa, pos);
+    	//Verifica se o identificador foi previamente declarado.
+		if(!retornaTipo(id)){
+    		imprimeErroDeclaracao(programa, pos, id, 2);
+    		return 0;
+		}
     }else if(lookahead==_TRUE_ || lookahead==_FALSE_){
         if(!booleano(programa, pos)) return 0;
     }else if(lookahead==_VALOR_){
@@ -1015,9 +1287,10 @@ int listaDeParametros(char programa[], int *pos){
 
 //Regra #16:  <comando condicional> ::= if ( <expressão> ) { <comando composto> } [ else { <comando composto> } ]
 int comandoCondicional(char programa[], int *pos){
-    if(!match(_IF_, programa, pos) ||
+    int tipo;
+	if(!match(_IF_, programa, pos) ||
        !match(_ABRE_PARENTESE_, programa, pos) ||
-       !expressao(programa, pos) ||
+       !expressao(programa, pos, &tipo) ||
        !match(_FECHA_PARENTESE_, programa, pos) ||
        !match(_ABRE_CHAVE_, programa, pos) ||
        !comandoComposto(programa, pos) ||
@@ -1035,9 +1308,10 @@ int comandoCondicional(char programa[], int *pos){
 
 //Regra #17:  <comando repetitivo> ::= while ( <expressão> ) { <comando composto> }
 int comandoRepetitivo(char programa[], int *pos){
-    if(match(_WHILE_, programa, pos) &&
+    int tipo;
+	if(match(_WHILE_, programa, pos) &&
        match(_ABRE_PARENTESE_, programa, pos) &&
-       expressao(programa, pos) &&
+       expressao(programa, pos, &tipo) &&
        match(_FECHA_PARENTESE_, programa, pos) &&
        match(_ABRE_CHAVE_, programa, pos) &&
        comandoComposto(programa, pos) &&
@@ -1046,13 +1320,19 @@ int comandoRepetitivo(char programa[], int *pos){
     return 0;
 }
 
-//Regra #18: <expressao> ::= <expressao simples> [ <relacao> <expressao simples> ]
-int expressao(char programa[], int *pos){
-    if(!expressaoSimples(programa, pos)) return 0;
+//Regra #18: <expressao> ::= <expressao simples> [ <relacao> <expressao simples> ]	---MODIFICADA NA ULTIMA ENTREGA--- 
+int expressao(char programa[], int *pos, int *tipo){
+    if(!expressaoSimples(programa, pos, tipo)) return 0;
+    int tipo2 = *tipo;
     if(lookahead==_MAIOR_IGUAL_ || lookahead==_MAIOR_ || lookahead==_MENOR_ || lookahead==_MENOR_IGUAL_ || lookahead==_IGUALDADE_ || lookahead==_DIFERENTE_){
         if(!relacao(programa, pos) ||
-           !expressaoSimples(programa, pos)
+           !expressaoSimples(programa, pos, tipo)
            ) return 0;
+        //Verifica se ambas as partes da expressao possuem o mesmo tipo.   
+        if(*tipo!=tipo2){
+        	imprimeErroCompatibilidade(programa, pos, "", 1);	
+        	return 0;
+		}     
     }
     return 1;
 }
@@ -1078,49 +1358,82 @@ int relacao(char programa[], int *pos){
     return 0;
 }
 
-//Regra #20: <expressao simples> ::= [ + | - ] <termo> [ <expressao simples> ]
-int expressaoSimples(char programa[], int *pos){
+//Regra #20: <expressao simples> ::= [ + | - ] <termo> [ <expressao simples> ] ---MODIFICADA NA ULTIMA ENTREGA--- 
+int expressaoSimples(char programa[], int *pos, int *tipo){
     if(lookahead==_MAIS_){
         if(!match(_MAIS_, programa, pos)) return 0;
     }else if(lookahead==_MENOS_){
         if(!match(_MENOS_, programa, pos)) return 0;
     }
-    if(!termo(programa, pos)) return 0;
+    if(!termo(programa, pos, tipo)) return 0;
+    int tipo2 = *tipo;
     if(lookahead==_MAIS_ || lookahead==_MENOS_ || lookahead==_IDENTIFICADOR_ || lookahead==_VALOR_ || lookahead==_TRUE_ || lookahead==_FALSE_ || lookahead==_ABRE_PARENTESE_){
-        if(!expressaoSimples(programa, pos)) return 0;
+        if(!expressaoSimples(programa, pos, tipo)) return 0;
+        //Verifica se ambas as partes da expressao possuem o mesemo tipo.
+		if(*tipo!=tipo2){
+        	imprimeErroCompatibilidade(programa, pos, "", 1);	
+        	return 0;
+		}  
     }
     return 1;
 }
 
 
-//Regra #21: <termo> ::= <fator> [ (  * | / ) <termo> ]
-int termo(char programa[], int *pos){
-    if(!fator(programa, pos)) return 0;
-    if(lookahead==_DIVIDIDO_){
-        if(!match(_DIVIDIDO_, programa, pos) ||
-           !termo(programa, pos)
+//Regra #21: <termo> ::= <fator> [ (  * | / ) <termo> ]	---MODIFICADA NA ULTIMA ENTREGA--- 
+int termo(char programa[], int *pos, int *tipo){
+    if(!fator(programa, pos, tipo)) return 0;
+    int tipo2 = *tipo;
+	if(lookahead==_DIVIDIDO_){
+		if(!match(_DIVIDIDO_, programa, pos) ||
+           !termo(programa, pos, tipo)
            ) return 0;
+        //Verifica se termo e fator possuem o mesmo tipo.   
+        if(*tipo!=tipo2){
+        	imprimeErroCompatibilidade(programa, pos, "", 1);	
+        	return 0;
+		}    
         return 1;
     }else if(lookahead==_VEZES_){
         if(!match(_VEZES_, programa, pos) ||
-           !termo(programa, pos)
+           !termo(programa, pos, tipo)
            ) return 0;
+        //Verifica se termo e fator possuem o mesmo tipo.     
+        if(*tipo!=tipo2){
+        	imprimeErroCompatibilidade(programa, pos, "", 1);	
+        	return 0;
+		}  
         return 1;
     }
     return 1;
 }
 
-//Regra #22:  <fator> ::= <valor> | <identificador> | <booleano> | ( <expressao simples> )
-int fator(char programa[], int *pos){
+//Regra #22:  <fator> ::= <valor> | <identificador> | <booleano> | ( <expressao simples> )	---MODIFICADA NA ULTIMA ENTREGA--- 
+int fator(char programa[], int *pos, int *tipo){
     if(lookahead==_VALOR_){
-        if(match(_VALOR_, programa, pos)) return 1;
+        if(match(_VALOR_, programa, pos)){
+			*tipo = _INT_;
+			return 1;	
+		} 
     }else if(lookahead==_IDENTIFICADOR_){
-        if(match(_IDENTIFICADOR_, programa, pos)) return 1;
+        if(match(_IDENTIFICADOR_, programa, pos)){
+        	char *id = retornaUltimoId(programa, pos);
+    		//Verifica se o identificador ja foi previamente declarado.
+			if(!retornaTipo(id)){
+    			imprimeErroDeclaracao(programa, pos, id, 2);
+    			return 0;
+			}
+			//Armazena o tipo do identificador.
+			*tipo = retornaTipo(id);
+			return 1;	
+		} 
     }else if(lookahead==_TRUE_ || lookahead==_FALSE_){
-        if(booleano(programa, pos)) return 1;
+        if(booleano(programa, pos)){
+        	*tipo = _BOOL_;
+			return 1;	
+		}
     }else if(lookahead==_ABRE_PARENTESE_){
         if(match(_ABRE_PARENTESE_, programa, pos) &&
-           expressaoSimples(programa, pos) &&
+           expressao(programa, pos, tipo) &&
            match(_FECHA_PARENTESE_, programa, pos)
            ) return 1;
     }else{
@@ -1144,7 +1457,7 @@ int booleano(char programa[], int *pos){
     return 0;
 }
 
-//--------------------------------------------------------------------------------------------------------------------------------------
+//-------------------------------------------MAIN----------------------------------------------
 
 int main(){
 	FILE *arquivo;
@@ -1152,13 +1465,15 @@ int main(){
 	char nome[] = "entrada.txt"; 
     char* entrada = leArquivo(arquivo, nome);
 	int pos = 0;
+	escopoAtual = NULL;
     //Instancia o lookahead para o primeiro token do programa.
 	lookahead = analisadorLexico(entrada, &pos);
     //Ignora todos os tokens de comentario, antes de comecar a leitura.
     while(lookahead==_COMENTARIO_) lookahead = analisadorLexico(entrada, &pos);
     if(programa(entrada, &pos)){
-        printf("Analises lexica e semantica efetuadas com sucesso!\n");
+        printf("Analises lexica, sintatica e semantica efetuadas com sucesso!\n");
         printf("Nenhum erro encontrado!\n");
     }
+    
     return 0;
 }
